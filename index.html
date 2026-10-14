@@ -1,0 +1,673 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Coin Plant Batch Cost</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: one working page. Header with upload, filter row, KPI strip, two chart columns, trend, data checks, day history, batch table. */
+:root{
+  --plane:#f9f9f7; --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
+  --grid:#e1e0d9; --axis:#c3c2b7; --line:rgba(11,11,11,.10); --wash:rgba(11,11,11,.05);
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --accent:#2a78d6; --on-accent:#fff;
+  --bad:#d03b3b; --ok:#0ca30c; --warn:#fab219;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --plane:#0d0d0d; --surface:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --axis:#383835; --line:rgba(255,255,255,.10); --wash:rgba(255,255,255,.07);
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --accent:#3987e5; --on-accent:#0b0b0b; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --plane:#0d0d0d; --surface:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --muted:#898781;
+  --grid:#2c2c2a; --axis:#383835; --line:rgba(255,255,255,.10); --wash:rgba(255,255,255,.07);
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --accent:#3987e5; --on-accent:#0b0b0b; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--plane);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.45;
+  padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1240px;margin:0 auto;display:flex;flex-direction:column;gap:16px;min-width:0}
+h1{font-size:22px;line-height:1.2;margin:0;font-weight:650;letter-spacing:-.01em;text-wrap:balance}
+h2{font-size:14px;margin:0;font-weight:650}
+.sub{margin:4px 0 0;color:var(--ink2)}
+.top{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;justify-content:space-between}
+.btn{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 14px;cursor:pointer;min-height:36px}
+.btn:hover{background:var(--wash)}
+.btn.primary{background:var(--accent);color:var(--on-accent);border-color:transparent;font-weight:600}
+.btn.primary:hover{filter:brightness(1.06)}
+.btn.small{padding:4px 10px;min-height:28px;font-size:12.5px}
+.btn:focus-visible,select:focus-visible,input:focus-visible,.brow:focus-visible,th button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.drop{border:1.5px dashed var(--axis);border-radius:10px;padding:12px 16px;color:var(--ink2);background:var(--surface);display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.drop.over{border-color:var(--accent);background:var(--wash)}
+.drop .hint{flex:1 1 280px;min-width:0}
+#msg{min-height:0}
+.msg{padding:10px 14px;border-radius:8px;border:1px solid var(--line);background:var(--surface);display:flex;gap:10px;align-items:flex-start}
+.msg.err{border-color:var(--bad)}
+.msg b{white-space:nowrap}
+.controls{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field label{font-size:12px;color:var(--ink2);letter-spacing:.02em;text-transform:uppercase}
+select,input[type=search]{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 10px;min-height:36px;max-width:100%}
+select:disabled{opacity:.5}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;min-width:0}
+.kpi .l{font-size:12px;color:var(--ink2);text-transform:uppercase;letter-spacing:.03em}
+.kpi .v{font-size:26px;font-weight:650;letter-spacing:-.015em;margin-top:4px;overflow-wrap:anywhere}
+.kpi .d{font-size:12.5px;color:var(--ink2);margin-top:2px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,480px),1fr));gap:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;min-width:0;display:flex;flex-direction:column;gap:12px}
+.card header{display:flex;justify-content:space-between;gap:8px 16px;flex-wrap:wrap;align-items:flex-start}
+.card header p{margin:2px 0 0;color:var(--ink2);font-size:12.5px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{font:inherit;font-size:12.5px;border:0;background:transparent;color:var(--ink2);padding:5px 10px;cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--accent);color:var(--on-accent);font-weight:600}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--ink2)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.brow{display:grid;grid-template-columns:minmax(96px,150px) minmax(0,1fr) auto;gap:10px;align-items:center;padding:3px 0;border-radius:6px}
+.brow:hover{background:var(--wash)}
+.blabel{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.btrack{height:16px;position:relative;min-width:0}
+.bstack{display:flex;gap:2px;height:100%;min-width:2px}
+.bstack>span{display:block;min-width:2px}
+.bstack>span:last-child{border-radius:0 4px 4px 0}
+.bval{font-size:12.5px;color:var(--ink2);font-variant-numeric:tabular-nums;text-align:right;min-width:64px}
+.bars{display:flex;flex-direction:column;gap:2px}
+@media (max-width:520px){
+  .brow{grid-template-columns:minmax(0,1fr) auto;row-gap:2px}
+  .brow .btrack{grid-column:1/-1;grid-row:2}
+}
+.empty{color:var(--ink2);padding:18px 4px}
+.checks{display:flex;flex-direction:column;gap:10px}
+.check{border:1px solid var(--line);border-radius:8px;padding:10px 12px;min-width:0}
+.check summary{cursor:pointer;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.check summary b{font-weight:650}
+.badge{display:inline-block;min-width:22px;text-align:center;border-radius:11px;padding:1px 8px;font-size:12px;font-weight:650;border:1px solid var(--line)}
+.badge.flag{border-color:var(--warn);background:color-mix(in srgb,var(--warn) 22%,transparent)}
+.badge.ok{border-color:var(--ok)}
+.check ul{margin:8px 0 0;padding-left:18px;color:var(--ink2);font-size:13px}
+.check p{margin:6px 0 0;color:var(--ink2);font-size:13px}
+.tscroll{overflow:auto;max-width:100%;max-height:560px;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
+th,td{padding:7px 10px;text-align:left;white-space:nowrap;border-bottom:1px solid var(--grid)}
+th{position:sticky;top:0;background:var(--surface);font-size:12px;color:var(--ink2);font-weight:600;z-index:1;border-bottom:1px solid var(--axis)}
+th button{all:unset;cursor:pointer;display:inline-flex;gap:4px;align-items:center}
+.num{text-align:right}
+tbody tr:hover{background:var(--wash)}
+.rowact{display:flex;gap:6px;justify-content:flex-end}
+.tools{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.small-note{font-size:12.5px;color:var(--ink2)}
+#tip{position:fixed;z-index:50;pointer-events:none;background:var(--ink);color:var(--surface);border-radius:8px;padding:8px 10px;font-size:12.5px;white-space:pre-line;max-width:min(320px,calc(100vw - 16px));box-shadow:0 4px 18px rgba(0,0,0,.25)}
+svg text{fill:var(--ink2);font-family:var(--sans);font-size:11px}
+@media (prefers-reduced-motion:no-preference){.bfill{transition:width .25s ease}}
+</style>
+
+</head>
+<body>
+<div class="wrap" id="app">
+  <div class="top">
+    <div>
+      <h1>Coin Plant Batch Cost</h1>
+      <p class="sub" id="scope">Loading data…</p>
+    </div>
+    <div class="tools">
+      <button class="btn primary" id="uploadBtn" type="button">Upload data</button>
+      <input type="file" id="file" accept=".xlsx,.xls,.csv,.pdf" multiple hidden>
+    </div>
+  </div>
+
+  <div class="drop" id="drop">
+    <div class="hint">Drop the day's SAPUI5 export here, or use Upload data. Excel (.xlsx) and CSV read most reliably; PDF is also accepted. A file for a date that is already loaded replaces that day.</div>
+  </div>
+  <div id="msg" role="status" aria-live="polite"></div>
+
+  <div class="controls">
+    <div class="field"><label for="fView">View</label>
+      <select id="fView"><option value="day">Single day</option><option value="all">All days</option></select></div>
+    <div class="field"><label for="fDate">Date</label><select id="fDate"></select></div>
+    <div class="field"><label for="fPlant">Plant</label><select id="fPlant"></select></div>
+    <div class="field"><label for="fOp">Operation</label><select id="fOp"></select></div>
+    <div class="field"><label for="fGrp">Material group</label><select id="fGrp"></select></div>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="grid2">
+    <section class="card">
+      <header><div><h2>Cost by operation</h2><p>Store, power and labour, direct plus indirect</p></div></header>
+      <div class="legend"><span><i style="background:var(--s1)"></i>Store</span><span><i style="background:var(--s2)"></i>Power</span><span><i style="background:var(--s3)"></i>Labour</span></div>
+      <div class="bars" id="cOp"></div>
+    </section>
+    <section class="card">
+      <header><div><h2>By work center</h2><p id="wcSub">Top 12</p></div>
+        <div class="seg" role="group" aria-label="Metric for work center and material group charts">
+          <button type="button" data-metric="cost" aria-pressed="true">Total cost</button>
+          <button type="button" data-metric="rate" aria-pressed="false">₹ per kg</button>
+        </div></header>
+      <div class="bars" id="cWc"></div>
+    </section>
+  </div>
+
+  <div class="grid2">
+    <section class="card">
+      <header><div><h2>By material group</h2><p>Denomination or product family</p></div></header>
+      <div class="bars" id="cGrp"></div>
+    </section>
+    <section class="card">
+      <header><div><h2>Daily trend</h2><p id="trendSub">Follows the plant, operation and material filters</p></div></header>
+      <div id="cTrend"></div>
+    </section>
+  </div>
+
+  <section class="card">
+    <header><div><h2>Data checks</h2><p>Things worth a second look before the numbers are used. Nothing here changes the totals.</p></div></header>
+    <div class="checks" id="checks"></div>
+  </section>
+
+  <section class="card">
+    <header><div><h2>Days loaded</h2><p id="daysSub"></p></div></header>
+    <div class="tscroll" style="max-height:320px"><table id="daysTbl"></table></div>
+  </section>
+
+  <section class="card">
+    <header><div><h2>Batches</h2><p id="tblSub"></p></div>
+      <div class="tools"><input type="search" id="q" placeholder="Search work center, batch, material" aria-label="Search batches"><button class="btn small" id="csvBtn" type="button">Download CSV</button></div></header>
+    <div class="tscroll"><table id="tbl"></table></div>
+    <div><button class="btn small" id="more" type="button" hidden>Show more</button></div>
+  </section>
+</div>
+<div id="tip" hidden></div>
+
+<script>
+//#PARSE-START
+const NUM=s=>{const v=parseFloat(String(s).replace(/,/g,''));return isFinite(v)?v:0};
+const PRE=/^(\d{4}) (\d{4}) (\S+) (\S+) (.+?) (\d\d\/\d\d\/\d{4}) (\S+) (-?[\d,]*\.?\d+) (\S+) (\S+) (.+?) (\d{4}-\d\d-\d\d \d\d:\d\d:\d\d) (\d{4}-\d\d-\d\d \d\d:\d\d:\d\d)/;
+const LINE_RX=new RegExp(PRE.source+(' (-?[\\d,]*\\.?\\d+)').repeat(20)+'\\s*$');
+function mdyToIso(s){const m=/^(\d\d)\/(\d\d)\/(\d{4})$/.exec(s);return m?m[3]+'-'+m[1]+'-'+m[2]:null}
+/* Row layout: company, plant, workCenter, workCenterText, batch, qtyKg, materialGroup, materialCode, materialDesc,
+   start, end, runMin, dayRunMin, storeDirect, storeIndirect, powerDirect, powerIndirect, labourDirect, labourIndirect,
+   totalDirect, totalIndirect, totalAmount */
+function rowFromLine(l){
+  const m=LINE_RX.exec(l); if(!m) return null;
+  const g=m.slice(1), n=g.slice(13).map(NUM);
+  return {date:mdyToIso(g[5]),row:[g[0],g[1],g[3],g[4],g[6],NUM(g[7]),g[8],g[9],g[10],g[11],g[12],n[0],n[1],n[2],n[4],n[6],n[8],n[10],n[12],n[14],n[16],n[18]]};
+}
+function parseTextLines(lines){
+  const byDate={};let bad=0;
+  for(const raw of lines){
+    const l=raw.replace(/\s+/g,' ').trim();
+    if(!/^\d{4} \d{4} /.test(l)) continue;
+    const r=rowFromLine(l);
+    if(!r||!r.date){bad++;continue}
+    (byDate[r.date]=byDate[r.date]||[]).push(r.row);
+  }
+  return {byDate,bad};
+}
+//#PARSE-END
+
+(function(){
+'use strict';
+const SEED={"2026-10-13":{"rows":[["1000","1010","RIMING-2","RIMMING M/C-02","C4544T047",753.0,"RS5","RS5-R","RS5-RIMMING","2026-10-13 21:46:05","2026-10-13 22:57:09",71.07,1331.97,0.0,22.35,80.35,32.37,208.0,277.22,288.35,331.94,620.29],["1000","1010","RIMING-2","RIMMING M/C-02","C4552T022",752.0,"RS5","RS5-R","RS5-RIMMING","2026-10-13 18:27:03","2026-10-13 19:57:08",90.08,1331.97,0.0,28.3,101.72,40.98,263.32,350.94,365.04,420.22,785.26],["1000","1010","RIMING-2","RIMMING M/C-02","C4552T064",744.0,"RS5","RS5-R","RS5-RIMMING","2026-10-13 14:30:43","2026-10-13 16:15:29",104.77,1331.97,0.0,32.94,118.42,47.71,306.55,408.56,424.97,489.21,914.18],["1000","1010","RIMING-2","RIMMING M/C-02","C4552T073",734.0,"RS5","RS5-R","RS5-RIMMING","2026-10-13 20:48:42","2026-10-13 21:38:26",49.73,1331.97,0.0,15.61,56.13,22.61,145.29,193.64,201.42,231.86,433.28],["1000","1010","RIMING-2","RIMMING M/C-02","C4552T124",742.0,"RS5","RS5-R","RS5-RIMMING","2026-10-13 16:17:45","2026-10-13 18:25:45",128.0,1331.97,0.0,40.23,144.6,58.25,374.33,498.89,518.93,597.37,1116.3],["1000","1010","RIMING-2","RIMMING M/C-02","C4552T138",722.0,"RS5","RS5-R","RS5-RIMMING","2026-10-13 19:58:23","2026-10-13 20:47:46",49.38,1331.97,0.0,15.53,55.83,22.49,144.51,192.6,200.34,230.62,430.96],["1000","1010","RIMING-2","RIMMING M/C-02","C4552T159",772.0,"RS5","RS5-R","RS5-RIMMING","2026-10-13 11:58:01","2026-10-13 14:27:40",149.65,1331.97,0.0,47.05,169.13,68.13,437.82,583.51,606.95,698.69,1305.64],["1000","1010","RIMING-2","RIMMING M/C-02","C5532T121",738.0,"RS5","RS5-R","RS5-RIMMING","2026-10-13 07:36:33","2026-10-13 11:54:24",257.85,1331.97,0.0,81.04,291.31,117.36,754.11,1005.05,1045.42,1203.45,2248.87],["1000","1010","RIMING-2","RIMMING M/C-02","C5532T135",719.0,"RS5","RS5-R","RS5-RIMMING","2026-10-13 05:30:48","2026-10-13 07:35:50",125.03,1331.97,0.0,39.31,141.29,56.92,365.76,487.47,507.05,583.7,1090.75],["1000","1010","RIMING-2","RIMMING M/C-02","C5532T136",707.0,"RS5","RS5-R","RS5-RIMMING","2026-10-13 01:31:18","2026-10-13 02:24:14",52.93,1331.97,0.0,16.62,59.74,24.07,154.64,206.1,214.38,246.79,461.17],["1000","1010","RIMING-2","RIMMING M/C-02","C5532T150",738.0,"RS5","RS5-R","RS5-RIMMING","2026-10-13 04:13:38","2026-10-13 05:29:53",76.25,1331.97,0.0,23.94,86.07,34.67,222.81,296.95,308.88,355.56,664.44],["1000","1010","RIMING-2","RIMMING M/C-02","C5532T158",703.0,"RS5","RS5-R","RS5-RIMMING","2026-10-13 00:15:30","2026-10-13 01:29:45",74.25,1331.97,0.0,23.32,83.81,33.76,216.96,289.16,300.77,346.24,647.01],["1000","1010","RIMING-2","RIMMING M/C-02","C5532T161",711.0,"RS5","RS5-R","RS5-RIMMING","2026-10-13 02:25:22","2026-10-13 04:08:21",102.98,1331.97,0.0,32.36,116.31,46.86,301.1,401.29,417.41,480.51,897.92],["1000","1010","P-COIN","COIN PACKING","C4554D1570",800.0,"NS02","FG-100","COLONES-CR COPPER ALLOYS COIN BLANK-100 COLONES CR","2026-10-13 11:33:32","2026-10-13 11:34:01",0.48,43.41,1110.86,4.65,16.7,6.73,457.8,57.62,1585.36,69.0,1654.36],["1000","1010","P-COIN","COIN PACKING","C4554D1571",800.0,"NS02","FG-100","COLONES-CR COPPER ALLOYS COIN BLANK-100 COLONES CR","2026-10-13 12:08:08","2026-10-13 12:08:37",0.48,43.41,1110.86,4.65,16.7,6.73,457.8,57.62,1585.36,69.0,1654.36],["1000","1010","P-COIN","COIN PACKING","C4554D1572",800.0,"NS02","FG-100","COLONES-CR COPPER ALLOYS COIN BLANK-100 COLONES CR","2026-10-13 12:09:03","2026-10-13 12:09:33",0.5,43.41,1150.89,4.81,17.3,6.97,474.3,59.7,1642.49,71.48,1713.97],["1000","1010","P-COIN","COIN PACKING","C4554D1573",800.0,"NS02","FG-100","COLONES-CR COPPER ALLOYS COIN BLANK-100 COLONES CR","2026-10-13 02:05:08","2026-10-13 02:05:43",0.58,43.41,1341.04,5.61,20.16,8.12,552.66,69.56,1913.86,83.29,1997.15],["1000","1010","P-COIN","COIN PACKING","C4555D1569",800.0,"NS02","FG-100","COLONES-CR COPPER ALLOYS COIN BLANK-100 COLONES CR","2026-10-13 11:32:34","2026-10-13 11:33:06",0.53,43.41,1220.94,5.11,18.36,7.4,503.17,63.33,1742.47,75.84,1818.31],["1000","1010","P-COIN","COIN PACKING","C4555D1574",800.0,"NS02","FG-100","COLONES-CR COPPER ALLOYS COIN BLANK-100 COLONES CR","2026-10-13 02:06:02","2026-10-13 02:06:35",0.55,43.41,1270.98,5.32,19.11,7.7,523.79,65.93,1813.88,78.95,1892.83],["1000","1010","P-COIN","COIN PACKING","C4556D1567",800.0,"NS02","FG-100","COLONES-CR COPPER ALLOYS COIN BLANK-100 COLONES CR","2026-10-13 10:21:35","2026-10-13 10:23:05",1.5,43.41,3462.68,14.48,52.06,20.97,1427.01,179.62,4941.75,215.07,5156.82],["1000","1010","P-COIN","COIN PACKING","C4556D1575",800.0,"NS02","FG-100","COLONES-CR COPPER ALLOYS COIN BLANK-100 COLONES CR","2026-10-13 02:07:03","2026-10-13 02:07:37",0.57,43.41,1311.01,5.48,19.71,7.94,540.29,68.01,1871.01,81.43,1952.44],["1000","1010","P-COIN","COIN PACKING","C4556D1577",800.0,"NS02","FG-100","COLONES-CR COPPER ALLOYS COIN BLANK-100 COLONES CR","2026-10-13 03:19:22","2026-10-13 03:20:08",0.77,43.41,1771.37,7.41,26.63,10.73,730.0,91.89,2528.0,110.03,2638.03],["1000","1010","P-COIN","COIN PACKING","C4557D1568",800.0,"NS02","FG-100","COLONES-CR COPPER ALLOYS COIN BLANK-100 COLONES CR","2026-10-13 10:23:53","2026-10-13 10:24:43",0.83,43.41,1911.48,8.0,28.74,11.58,787.75,99.16,2727.97,118.74,2846.71],["1000","1010","P-COIN","COIN PACKING","C4557D1578",800.0,"NS02","FG-100","COLONES-CR COPPER ALLOYS COIN BLANK-100 COLONES CR","2026-10-13 03:20:22","2026-10-13 03:20:45",0.38,43.41,880.68,3.68,13.24,5.33,362.94,45.68,1256.86,54.69,1311.55],["1000","1010","P-COIN","COIN PACKING","C4559D1579",800.0,"NS02","FG-100","COLONES-CR COPPER ALLOYS COIN BLANK-100 COLONES CR","2026-10-13 09:12:35","2026-10-13 09:13:12",0.62,43.41,1431.11,5.99,21.52,8.67,589.78,74.24,2042.41,88.9,2131.31],["1000","1010","P-COIN","COIN PACKING","C4559D1580",800.0,"NS02","FG-100","COLONES-CR COPPER ALLOYS COIN BLANK-100 COLONES CR","2026-10-13 09:13:38","2026-10-13 09:14:17",0.65,43.41,1501.16,6.28,22.57,9.09,618.65,77.87,2142.38,93.24,2235.62],["1000","1010","P-COIN","COIN PACKING","C4559D1582",800.0,"NS02","FG-100","COLONES-CR COPPER ALLOYS COIN BLANK-100 COLONES CR","2026-10-13 09:30:33","2026-10-13 09:31:23",0.83,43.41,1911.48,8.0,28.74,11.58,787.75,99.16,2727.97,118.74,2846.71],["1000","1010","P-COIN","COIN PACKING","C4564D1576",800.0,"NS02","FG-100","COLONES-CR COPPER ALLOYS COIN BLANK-100 COLONES CR","2026-10-13 02:08:05","2026-10-13 02:08:47",0.7,43.41,1611.25,6.74,24.23,9.76,664.02,83.58,2299.5,100.08,2399.58],["1000","1010","P-COIN","COIN PACKING","C4564D1581",800.0,"NS02","FG-100","COLONES-CR COPPER ALLOYS COIN BLANK-100 COLONES CR","2026-10-13 09:29:30","2026-10-13 09:30:18",0.8,43.41,1841.42,7.7,27.69,11.15,758.87,95.52,2627.98,114.37,2742.35],["1000","1010","PBOWL-03","POLISHING BOWL-03","C4554T073",1155.0,"NS02","COLONS-100-CORE-P","100-COLONS-CORE-POLISHING","2026-10-13 00:40:11","2026-10-13 02:12:40",92.48,696.07,3663.63,59.45,199.98,80.56,517.67,689.93,4381.28,829.94,5211.22],["1000","1010","PBOWL-03","POLISHING BOWL-03","C4554T095",426.0,"NS02","COLONS-100-CORE-P","100-COLONS-CORE-POLISHING","2026-10-13 02:14:29","2026-10-13 03:49:41",95.2,696.07,3771.14,61.2,205.85,82.93,532.86,710.18,4509.85,854.31,5364.16],["1000","1010","PBOWL-03","POLISHING BOWL-03","C4554T166",533.0,"NS02","COLONS-100-CORE-P","100-COLONS-CORE-POLISHING","2026-10-12 23:58:48","2026-10-13 00:39:11",40.38,696.07,1598.87,25.95,87.27,35.16,225.92,301.1,1912.06,362.21,2274.27],["1000","1010","PBOWL-03","POLISHING BOWL-03","C4564T083",809.0,"NS02","COLONS-100-CORE-P","100-COLONS-CORE-POLISHING","2026-10-13 21:15:17","2026-10-13 21:28:18",13.02,696.07,515.5,8.37,28.14,11.34,72.84,97.08,616.48,116.79,733.27],["1000","1010","PBOWL-03","POLISHING BOWL-03","C4564T164",802.0,"NS02","COLONS-100-CORE-P","100-COLONS-CORE-POLISHING","2026-10-13 21:31:21","2026-10-13 21:42:35",11.23,696.07,443.83,7.2,24.23,9.76,62.71,83.58,530.77,100.54,631.31],["2000","2010","BAK","A-02 BAK ANN-02","C4556T073",670.0,"NS02","JCOLONS-100-CORE-A","J/W-100-COLONS-CORE-ANNEALING","2026-10-12 23:31:47","2026-10-13 00:21:07",49.33,709.48,0.0,133.83,693.32,193.8,213.69,1348.24,907.01,1675.87,2582.88],["2000","2010","BAK","A-02 BAK ANN-02","C4556T076",1332.0,"NS02","JCOLONS-100-CORE-A","J/W-100-COLONS-CORE-ANNEALING","2026-10-13 00:21:54","2026-10-13 01:49:35",87.68,709.48,0.0,238.0,1233.01,344.65,380.04,2397.73,1613.05,2980.38,4593.43],["2000","2010","BAK","A-02 BAK ANN-02","C4559T050",902.0,"NS02","JCOLONS-100-CORE-A","J/W-100-COLONS-CORE-ANNEALING","2026-10-13 02:46:50","2026-10-13 03:24:37",37.78,709.48,0.0,102.63,531.71,148.62,163.88,1033.97,695.59,1285.22,1980.81],["2000","2010","BAK","A-02 BAK ANN-02","C4559T062",896.0,"NS02","JCOLONS-100-CORE-A","J/W-100-COLONS-CORE-ANNEALING","2026-10-13 03:25:33","2026-10-13 04:07:06",41.55,709.48,0.0,112.84,584.58,163.4,180.18,1136.79,764.76,1413.03,2177.79],["2000","2010","BAK","A-02 BAK ANN-02","C4559T133",891.0,"NS02","JCOLONS-100-CORE-A","J/W-100-COLONS-CORE-ANNEALING","2026-10-13 04:07:41","2026-10-13 04:30:08",22.45,709.48,0.0,60.85,315.24,88.11,97.16,613.01,412.4,761.97,1174.37],["2000","2010","BAK","A-02 BAK ANN-02","C4562T023",1223.0,"NS02","JCOLONS-100-CORE-A","J/W-100-COLONS-CORE-ANNEALING","2026-10-13 17:18:15","2026-10-13 17:36:58",18.72,709.48,0.0,50.84,263.36,73.61,81.17,512.14,344.53,636.59,981.12],["2000","2010","BAK","A-02 BAK ANN-02","C4564T082",794.0,"NS02","JCOLONS-100-CORE-A","J/W-100-COLONS-CORE-ANNEALING","2026-10-13 04:30:55","2026-10-13 05:12:53",41.97,709.48,0.0,114.0,590.57,165.08,182.02,1148.43,772.59,1427.51,2200.1],["2000","2010","BAK","A-02 BAK ANN-02","C4564T083",809.0,"NS02","JCOLONS-100-CORE-A","J/W-100-COLONS-CORE-ANNEALING","2026-10-13 09:24:22","2026-10-13 10:00:48",36.43,709.48,0.0,98.78,511.76,143.05,157.73,995.18,669.49,1237.01,1906.5],["2000","2010","BAK","A-02 BAK ANN-02","C4564T110",735.0,"NS02","JCOLONS-100-CORE-A","J/W-100-COLONS-CORE-ANNEALING","2026-10-13 10:01:38","2026-10-13 10:36:00",34.37,709.48,0.0,93.2,482.83,134.96,148.82,938.92,631.65,1167.08,1798.73],["2000","2010","BAK","A-02 BAK ANN-02","C4564T134",802.0,"NS02","JCOLONS-100-CORE-A","J/W-100-COLONS-CORE-ANNEALING","2026-10-13 10:38:50","2026-10-13 11:20:26",41.6,709.48,0.0,112.84,584.58,163.4,180.18,1136.79,764.76,1413.03,2177.79],["2000","2010","PBOWL-01","POLISHING BOWL-01","C7862T126",770.0,"NS20","JRS10-INNER-P","J/W-RS10-INNER-POLISHING","2026-10-13 01:36:33","2026-10-13 02:12:01",35.47,780.75,0.0,97.27,68.99,126.6,139.59,880.72,208.58,1104.59,1313.17],["2000","2010","PBOWL-01","POLISHING BOWL-01","C7862T138",748.0,"NS20","JRS10-INNER-P","J/W-RS10-INNER-POLISHING","2026-10-13 12:43:37","2026-10-13 13:33:01",49.4,780.75,0.0,135.63,96.19,176.51,194.63,1227.96,290.82,1540.1,1830.92],["2000","2010","PBOWL-01","POLISHING BOWL-01","C7862T167",776.0,"NS20","JRS10-INNER-P","J/W-RS10-INNER-POLISHING","2026-10-13 13:34:27","2026-10-13 14:45:07",70.67,780.75,0.0,193.91,137.53,252.35,278.26,1755.62,415.79,2201.88,2617.67],["2000","2010","PBOWL-01","POLISHING BOWL-01","C7865T158",742.0,"NS20","JRS10-INNER-P","J/W-RS10-INNER-POLISHING","2026-10-13 14:49:42","2026-10-13 15:54:07",64.42,780.75,0.0,176.76,125.37,230.05,253.67,1600.43,379.04,2007.24,2386.28],["2000","2010","PBOWL-01","POLISHING BOWL-01","C7866T016",783.0,"NS20","JRS10-INNER-P","J/W-RS10-INNER-POLISHING","2026-10-13 03:48:58","2026-10-13 05:57:36",128.63,780.75,0.0,353.1,250.43,459.53,506.72,3196.98,757.15,4009.61,4766.76],["2000","2010","PBOWL-01","POLISHING BOWL-01","C7866T017",849.0,"NS20","JRS10-INNER-P","J/W-RS10-INNER-POLISHING","2026-10-13 05:58:43","2026-10-13 07:03:14",64.52,780.75,0.0,176.98,125.52,230.33,253.97,1602.37,379.49,2009.68,2389.17],["2000","2010","PBOWL-01","POLISHING BOWL-01","C7866T024",860.0,"NS20","JRS10-INNER-P","J/W-RS10-INNER-POLISHING","2026-10-13 08:35:31","2026-10-13 10:09:25",93.9,780.75,0.0,257.75,182.81,335.45,369.89,2333.72,552.7,2926.92,3479.62],["2000","2010","PBOWL-01","POLISHING BOWL-01","C7866T037",859.0,"NS20","JRS10-INNER-P","J/W-RS10-INNER-POLISHING","2026-10-12 23:41:16","2026-10-13 01:34:39",113.38,780.75,0.0,311.11,220.65,404.88,446.45,2816.75,667.1,3532.74,4199.84],["2000","2010","PBOWL-01","POLISHING BOWL-01","C7866T061",770.0,"NS20","JRS10-INNER-P","J/W-RS10-INNER-POLISHING","2026-10-13 10:14:51","2026-10-13 11:23:12",68.35,780.75,0.0,187.48,132.97,243.99,269.04,1697.42,402.01,2128.89,2530.9],["2000","2010","PBOWL-02","POLISHING BOWL-02","C7862T079",772.0,"NS20","JRS10-INNER-W","J/W-RS10-INNER-WASHING","2026-10-12 23:43:08","2026-10-13 01:34:51",111.72,769.46,5627.16,279.6,220.65,404.88,446.45,2816.75,6294.26,3501.23,9795.49],["2000","2010","PBOWL-02","POLISHING BOWL-02","C7862T105",763.0,"NS20","JRS10-INNER-W","J/W-RS10-INNER-WASHING","2026-10-13 01:35:45","2026-10-13 02:10:56",35.18,769.46,1771.08,88.0,69.45,127.43,140.52,886.54,1981.05,1101.97,3083.02],["2000","2010","PBOWL-02","POLISHING BOWL-02","C7867T004",750.0,"NS20","JRS10-INNER-W","J/W-RS10-INNER-WASHING","2026-10-13 03:48:15","2026-10-13 05:59:08",130.88,769.46,6592.15,327.54,258.49,474.31,523.01,3299.79,7373.65,4101.64,11475.29],["2000","2010","PBOWL-02","POLISHING BOWL-02","C7867T007",677.0,"NS20","JRS10-INNER-W","J/W-RS10-INNER-WASHING","2026-10-13 05:59:59","2026-10-13 07:03:29",63.5,769.46,3197.25,158.86,125.37,230.05,253.67,1600.43,3576.29,1989.34,5565.63],["2000","2010","PBOWL-02","POLISHING BOWL-02","C7867T126",772.0,"NS20","JRS10-INNER-W","J/W-RS10-INNER-WASHING","2026-10-13 07:05:23","2026-10-13 08:30:03",84.67,769.46,4263.0,211.82,167.16,306.73,338.22,2133.9,4768.38,2652.45,7420.83],["2000","2010","PBOWL-02","POLISHING BOWL-02","C7867T130",1365.0,"NS20","JRS10-INNER-W","J/W-RS10-INNER-WASHING","2026-10-13 08:33:15","2026-10-13 09:09:23",36.13,769.46,1821.46,90.5,71.42,131.06,144.51,911.76,2037.39,1133.32,3170.71],["2000","2010","PBOWL-02","POLISHING BOWL-02","C7867T155",719.0,"NS20","JRS10-INNER-W","J/W-RS10-INNER-WASHING","2026-10-13 09:11:14","2026-10-13 09:50:33",39.32,769.46,1980.36,98.4,77.65,142.49,157.12,991.3,2215.13,1232.19,3447.32],["2000","2010","PBOWL-02","POLISHING BOWL-02","C7870T075",895.0,"NS20","JRS10-INNER-W","J/W-RS10-INNER-WASHING","2026-10-13 09:52:11","2026-10-13 10:15:15",23.07,769.46,1162.64,57.77,45.59,83.65,92.24,581.97,1300.47,723.39,2023.86],["1000","1010","SCHULR-2","SCHULER PRESS-02","C4560T087",543.0,"NS02","COLONS-100-CORE-B","100-COLONS-CORE-BLANKING","2026-10-13 17:04:45","2026-10-13 18:12:33",67.8,686.78,0.0,41.32,148.52,59.83,384.46,512.39,532.98,613.54,1146.52],["1000","1010","SCHULR-2","SCHULER PRESS-02","C4562T023",624.0,"NS02","COLONS-100-CORE-B","100-COLONS-CORE-BLANKING","2026-10-13 06:35:56","2026-10-13 07:37:56",62.0,686.78,0.0,37.8,135.88,54.74,351.74,468.78,487.62,561.32,1048.94],["1000","1010","SCHULR-2","SCHULER PRESS-02","C4562T090",603.0,"NS02","COLONS-100-CORE-B","100-COLONS-CORE-BLANKING","2026-10-13 09:13:42","2026-10-13 10:27:24",73.7,686.78,0.0,44.92,161.46,65.04,417.95,557.03,579.41,666.99,1246.4],["1000","1010","SCHULR-2","SCHULER PRESS-02","C4563T069",548.0,"NS02","COLONS-100-CORE-B","100-COLONS-CORE-BLANKING","2026-10-13 13:59:53","2026-10-13 14:32:17",32.4,686.78,0.0,19.76,71.02,28.61,183.85,245.03,254.87,293.4,548.27],["1000","1010","SCHULR-2","SCHULER PRESS-02","C4563T093",598.0,"NS02","COLONS-100-CORE-B","100-COLONS-CORE-BLANKING","2026-10-13 05:16:29","2026-10-13 06:34:34",78.08,686.78,0.0,47.6,171.09,68.92,442.88,590.26,613.97,706.78,1320.75],["1000","1010","SCHULR-2","SCHULER PRESS-02","C4563T153",612.0,"NS02","COLONS-100-CORE-B","100-COLONS-CORE-BLANKING","2026-10-13 03:26:00","2026-10-13 04:19:49",53.82,686.78,0.0,32.82,117.97,47.52,305.38,407.0,423.35,487.34,910.69],["1000","1010","SCHULR-2","SCHULER PRESS-02","C4563T161",555.0,"NS02","COLONS-100-CORE-B","100-COLONS-CORE-BLANKING","2026-10-13 12:08:44","2026-10-13 12:37:24",28.67,686.78,0.0,17.46,62.75,25.28,162.43,216.48,225.18,259.22,484.4],["1000","1010","SCHULR-2","SCHULER PRESS-02","C4564T083",809.0,"NS02","COLONS-100-CORE-B","100-COLONS-CORE-BLANKING","2026-10-12 22:59:15","2026-10-13 00:29:17",90.03,686.78,0.0,54.88,197.27,79.47,510.66,680.59,707.93,814.94,1522.87],["1000","1010","SCHULR-2","SCHULER PRESS-02","C4564T110",244.0,"NS02","COLONS-100-CORE-B","100-COLONS-CORE-BLANKING","2026-10-13 01:52:33","2026-10-13 02:15:41",23.13,686.78,0.0,14.11,50.71,20.43,131.27,174.95,181.98,209.49,391.47],["1000","1010","SCHULR-2","SCHULER PRESS-02","C4564T134",802.0,"NS02","COLONS-100-CORE-B","100-COLONS-CORE-BLANKING","2026-10-13 00:32:05","2026-10-13 01:48:23",76.3,686.78,0.0,46.51,167.17,67.35,432.76,576.76,599.93,690.62,1290.55],["2000","2010","PBOWL-01","POLISHING BOWL-01","C5540T124",347.0,"NS05","JRS10-RING-P","J/W-RS10-RING-POLISHING","2026-10-13 02:13:09","2026-10-13 02:40:53",27.73,780.75,0.0,76.06,53.95,98.99,109.15,688.67,163.1,863.72,1026.82],["2000","2010","PBOWL-01","POLISHING BOWL-01","C5542T064",818.0,"NS05","JRS10-RING-P","J/W-RS10-RING-POLISHING","2026-10-13 02:42:01","2026-10-13 02:56:45",14.73,780.75,0.0,40.5,28.72,52.7,58.11,366.64,86.83,459.84,546.67],["2000","2010","PBOWL-01","POLISHING BOWL-01","C5547T105",481.0,"NS05","JRS10-RING-P","J/W-RS10-RING-POLISHING","2026-10-13 02:57:36","2026-10-13 03:47:09",49.55,780.75,0.0,136.06,96.5,177.07,195.25,1231.84,291.75,1544.97,1836.72],["2000","2010","BAK","A-02 BAK ANN-02","C4552T022",752.0,"RS5","JRS5-A","J/W-RS5-ANNEALING","2026-10-13 23:23:20","2026-10-13 23:39:16",15.93,709.48,0.0,43.33,224.46,62.74,69.18,436.48,293.64,542.55,836.19],["2000","2010","BAK","A-02 BAK ANN-02","C4552T159",772.0,"RS5","JRS5-A","J/W-RS5-ANNEALING","2026-10-13 19:30:34","2026-10-13 20:08:02",37.47,709.48,0.0,101.67,526.72,147.23,162.35,1024.27,689.07,1273.17,1962.24],["2000","2010","BAK","A-02 BAK ANN-02","C5532T121",738.0,"RS5","JRS5-A","J/W-RS5-ANNEALING","2026-10-13 20:11:24","2026-10-13 20:44:48",33.4,709.48,0.0,90.7,469.86,131.34,144.82,913.7,614.68,1135.74,1750.42],["2000","2010","BAK","A-02 BAK ANN-02","C5532T135",719.0,"RS5","JRS5-A","J/W-RS5-ANNEALING","2026-10-13 20:45:52","2026-10-13 21:46:46",60.9,709.48,0.0,165.22,855.92,239.25,263.81,1664.45,1119.73,2068.92,3188.65],["2000","2010","BAK","A-02 BAK ANN-02","C5532T136",707.0,"RS5","JRS5-A","J/W-RS5-ANNEALING","2026-10-13 06:44:56","2026-10-13 07:25:21",40.42,709.48,0.0,109.76,568.62,158.94,175.26,1105.75,743.88,1374.45,2118.33],["2000","2010","BAK","A-02 BAK ANN-02","C5532T150",738.0,"RS5","JRS5-A","J/W-RS5-ANNEALING","2026-10-13 18:06:27","2026-10-13 18:42:48",36.35,709.48,0.0,98.59,510.76,142.77,157.43,993.24,668.19,1234.6,1902.79],["2000","2010","BAK","A-02 BAK ANN-02","C5532T158",703.0,"RS5","JRS5-A","J/W-RS5-ANNEALING","2026-10-13 07:27:04","2026-10-13 07:56:57",29.88,709.48,0.0,81.07,419.98,117.39,129.45,816.7,549.43,1015.16,1564.59],["2000","2010","BAK","A-02 BAK ANN-02","C5532T161",711.0,"RS5","JRS5-A","J/W-RS5-ANNEALING","2026-10-13 18:43:42","2026-10-13 19:26:57",43.25,709.48,0.0,117.46,608.52,170.09,187.56,1183.35,796.08,1470.9,2266.98],["2000","2010","PBOWL-02","POLISHING BOWL-02","C5540T033",628.0,"NS05","JRS10-RING-P","J/W-RS10-RING-POLISHING","2026-10-13 02:11:49","2026-10-13 02:42:10",30.35,769.46,1526.93,75.87,59.87,109.86,121.14,764.33,1707.94,950.06,2658.0],["2000","2010","PBOWL-02","POLISHING BOWL-02","C5547T157",240.0,"NS05","JRS10-RING-P","J/W-RS10-RING-POLISHING","2026-10-13 02:43:28","2026-10-13 02:57:47",14.32,769.46,720.83,35.82,28.26,51.86,57.19,360.82,806.28,448.5,1254.78],["2000","2010","PBOWL-02","POLISHING BOWL-02","C5549T161",406.0,"NS05","JRS10-RING-P","J/W-RS10-RING-POLISHING","2026-10-13 02:58:50","2026-10-13 03:47:27",48.62,769.46,2449.29,121.7,96.04,176.23,194.32,1226.03,2739.65,1523.96,4263.61],["1000","1010","P-COIN","COIN PACKING","C4524D1041",400.0,"NS12.5","FG-500-PESO-RING","COPPER ALLOYS COIN RING 500 PESO RING","2026-10-13 07:15:14","2026-10-13 07:16:35",1.35,43.41,3112.41,13.02,46.8,18.85,1282.66,161.45,4441.87,193.32,4635.19],["1000","1010","P-COIN","COIN PACKING","C7852D1037",400.0,"NS12.5","FG-500-PESO-RING","COPPER ALLOYS COIN RING 500 PESO RING","2026-10-13 11:01:36","2026-10-13 11:02:10",0.57,43.41,1311.01,5.48,19.71,7.94,540.29,68.01,1871.01,81.43,1952.44],["1000","1010","P-COIN","COIN PACKING","C7853D1039",400.0,"NS12.5","FG-500-PESO-RING","COPPER ALLOYS COIN RING 500 PESO RING","2026-10-13 04:54:56","2026-10-13 05:13:16",18.33,43.41,42262.69,176.78,635.44,255.99,17417.0,2192.32,60315.13,2625.09,62940.22],["1000","1010","P-COIN","COIN PACKING","C7856D1038",400.0,"NS12.5","FG-500-PESO-RING","COPPER ALLOYS COIN RING 500 PESO RING","2026-10-13 11:02:48","2026-10-13 11:03:17",0.48,43.41,1110.86,4.65,16.7,6.73,457.8,57.62,1585.36,69.0,1654.36],["1000","1010","P-COIN","COIN PACKING","C7856D1040",400.0,"NS12.5","FG-500-PESO-RING","COPPER ALLOYS COIN RING 500 PESO RING","2026-10-13 05:13:38","2026-10-13 05:14:37",0.98,43.41,2261.75,9.46,34.01,13.7,932.1,117.32,3227.86,140.48,3368.34],["1000","1010","P-COIN","COIN PACKING","C7856D1042",400.0,"NS12.5","FG-500-PESO-RING","COPPER ALLOYS COIN RING 500 PESO RING","2026-10-13 07:17:22","2026-10-13 07:18:09",0.78,43.41,1801.39,7.53,27.08,10.91,742.38,93.44,2570.85,111.88,2682.73],["1000","1010","P-COIN","COIN PACKING","C0322D1533",780.0,"RS10","FG-RS-10","RS 10 BI-METALLIC COMPOSITE COIN BLANK","2026-10-13 12:43:11","2026-10-13 12:43:37",0.43,43.41,990.77,4.14,14.9,6.0,408.31,51.39,1413.98,61.53,1475.51],["1000","1010","P-COIN","COIN PACKING","C0323D1531",780.0,"RS10","FG-RS-10","RS 10 BI-METALLIC COMPOSITE COIN BLANK","2026-10-13 10:51:21","2026-10-13 10:51:43",0.37,43.41,850.66,3.56,12.79,5.15,350.57,44.13,1214.02,52.84,1266.86],["1000","1010","P-COIN","COIN PACKING","C0324D1532",780.0,"RS10","FG-RS-10","RS 10 BI-METALLIC COMPOSITE COIN BLANK","2026-10-13 10:52:19","2026-10-13 10:53:01",0.7,43.41,1611.25,6.74,24.23,9.76,664.02,83.58,2299.5,100.08,2399.58],["1000","1010","P-COIN","COIN PACKING","C0324D1534",780.0,"RS10","FG-RS-10","RS 10 BI-METALLIC COMPOSITE COIN BLANK","2026-10-13 12:44:04","2026-10-13 12:44:28",0.4,43.41,920.71,3.85,13.84,5.58,379.44,47.76,1313.99,57.19,1371.18],["1000","1010","P-COIN","COIN PACKING","C0324D1535",780.0,"RS10","FG-RS-10","RS 10 BI-METALLIC COMPOSITE COIN BLANK","2026-10-13 12:44:46","2026-10-13 12:45:15",0.48,43.41,1110.86,4.65,16.7,6.73,457.8,57.62,1585.36,69.0,1654.36],["1000","1010","P-COIN","COIN PACKING","C0324D1536",780.0,"RS10","FG-RS-10","RS 10 BI-METALLIC COMPOSITE COIN BLANK","2026-10-13 12:45:37","2026-10-13 12:46:00",0.38,43.41,880.68,3.68,13.24,5.33,362.94,45.68,1256.86,54.69,1311.55],["1000","1010","P-COIN","COIN PACKING","C0324D1537",780.0,"RS10","FG-RS-10","RS 10 BI-METALLIC COMPOSITE COIN BLANK","2026-10-13 04:19:22","2026-10-13 04:19:48",0.43,43.41,990.77,4.14,14.9,6.0,408.31,51.39,1413.98,61.53,1475.51],["1000","1010","P-COIN","COIN PACKING","C0324D1538",780.0,"RS10","FG-RS-10","RS 10 BI-METALLIC COMPOSITE COIN BLANK","2026-10-13 04:20:14","2026-10-13 04:20:45",0.52,43.41,1200.93,5.02,18.06,7.27,494.92,62.3,1713.91,74.59,1788.5],["1000","1010","P-COIN","COIN PACKING","C0324D1539",780.0,"RS10","FG-RS-10","RS 10 BI-METALLIC COMPOSITE COIN BLANK","2026-10-13 04:21:05","2026-10-13 04:22:21",1.27,43.41,2932.27,12.27,44.09,17.76,1208.43,152.11,4184.79,182.14,4366.93],["1000","1010","P-COIN","COIN PACKING","C0324D1544",780.0,"RS10","FG-RS-10","RS 10 BI-METALLIC COMPOSITE COIN BLANK","2026-10-13 05:17:43","2026-10-13 05:18:06",0.38,43.41,880.68,3.68,13.24,5.33,362.94,45.68,1256.86,54.69,1311.55],["1000","1010","P-COIN","COIN PACKING","C0325D1540",780.0,"RS10","FG-RS-10","RS 10 BI-METALLIC COMPOSITE COIN BLANK","2026-10-13 04:23:02","2026-10-13 04:23:21",0.32,43.41,740.57,3.1,11.13,4.49,305.2,38.42,1056.9,46.01,1102.91],["1000","1010","P-COIN","COIN PACKING","C0325D1541",780.0,"RS10","FG-RS-10","RS 10 BI-METALLIC COMPOSITE COIN BLANK","2026-10-13 05:15:02","2026-10-13 05:15:45",0.72,43.41,1661.29,6.95,24.98,10.06,684.64,86.18,2370.91,103.19,2474.1],["1000","1010","P-COIN","COIN PACKING","C0325D1542",780.0,"RS10","FG-RS-10","RS 10 BI-METALLIC COMPOSITE COIN BLANK","2026-10-13 05:16:17","2026-10-13 05:16:38",0.35,43.41,810.63,3.39,12.19,4.91,334.07,42.05,1156.89,50.35,1207.24],["1000","1010","P-COIN","COIN PACKING","C0325D1543",780.0,"RS10","FG-RS-10","RS 10 BI-METALLIC COMPOSITE COIN BLANK","2026-10-13 05:16:56","2026-10-13 05:17:24",0.47,43.41,1080.84,4.52,16.25,6.55,445.43,56.07,1542.52,67.14,1609.66],["1000","1010","PBOWL-03","POLISHING BOWL-03","C4552T135",772.0,"RS5","RS5-P","RS5-POLISHING","2026-10-13 22:22:34","2026-10-13 23:02:59",40.42,696.07,1601.63,25.99,87.42,35.22,226.31,301.62,1915.36,362.83,2278.19],["1000","1010","SCHULR-4","SCHULER PRESS-04","C4541T003",672.0,"RS5","RS5-B","RS5-BLANKING","2026-10-13 22:26:17","2026-10-13 23:46:10",79.88,1285.55,0.0,26.0,93.44,37.64,241.89,322.38,335.33,386.02,721.35],["1000","1010","SCHULR-4","SCHULER PRESS-04","C4541T033",706.0,"RS5","RS5-B","RS5-BLANKING","2026-10-13 20:46:55","2026-10-13 22:25:00",98.08,1285.55,0.0,31.94,114.81,46.25,297.2,396.1,412.01,474.29,886.3],["1000","1010","SCHULR-4","SCHULER PRESS-04","C4541T129",722.0,"RS5","RS5-B","RS5-BLANKING","2026-10-13 19:22:02","2026-10-13 20:05:48",43.77,1285.55,0.0,14.23,51.16,20.61,132.44,176.51,183.6,211.35,394.95],["1000","1010","SCHULR-4","SCHULER PRESS-04","C4544T015",679.0,"RS5","RS5-B","RS5-BLANKING","2026-10-13 17:35:20","2026-10-13 18:14:56",39.6,1285.55,0.0,12.89,46.35,18.67,119.97,159.89,166.32,191.45,357.77],["1000","1010","SCHULR-4","SCHULER PRESS-04","C4544T032",756.0,"RS5","RS5-B","RS5-BLANKING","2026-10-13 14:42:27","2026-10-13 15:38:26",55.98,1285.55,0.0,18.21,65.46,26.37,169.44,225.82,234.9,270.4,505.3],["1000","1010","SCHULR-4","SCHULER PRESS-04","C4544T047",753.0,"RS5","RS5-B","RS5-BLANKING","2026-10-13 13:43:30","2026-10-13 14:41:30",58.0,1285.55,0.0,18.88,67.86,27.34,175.67,234.13,243.53,280.35,523.88],["1000","1010","SCHULR-4","SCHULER PRESS-04","C4544T060",680.0,"RS5","RS5-B","RS5-BLANKING","2026-10-13 16:37:11","2026-10-13 17:34:12",57.02,1285.55,0.0,18.59,66.81,26.91,172.95,230.5,239.76,276.0,515.76],["1000","1010","SCHULR-4","SCHULER PRESS-04","C4544T132",750.0,"RS5","RS5-B","RS5-BLANKING","2026-10-13 15:39:22","2026-10-13 16:35:34",56.2,1285.55,0.0,18.29,65.76,26.49,170.22,226.86,235.98,271.64,507.62],["1000","1010","SCHULR-4","SCHULER PRESS-04","C4552T022",752.0,"RS5","RS5-B","RS5-BLANKING","2026-10-13 07:59:27","2026-10-13 10:55:36",176.15,1285.55,0.0,57.35,206.15,83.05,533.64,711.22,739.79,851.62,1591.41],["1000","1010","SCHULR-4","SCHULER PRESS-04","C4552T064",744.0,"RS5","RS5-B","RS5-BLANKING","2026-10-13 04:14:55","2026-10-13 05:53:10",98.25,1285.55,0.0,31.98,114.96,46.31,297.59,396.62,412.55,474.91,887.46],["1000","1010","SCHULR-4","SCHULER PRESS-04","C4552T073",734.0,"RS5","RS5-B","RS5-BLANKING","2026-10-13 11:49:53","2026-10-13 12:59:28",69.58,1285.55,0.0,22.65,81.41,32.79,210.73,280.85,292.14,336.29,628.43],["1000","1010","SCHULR-4","SCHULER PRESS-04","C4552T124",742.0,"RS5","RS5-B","RS5-BLANKING","2026-10-13 05:58:47","2026-10-13 07:31:36",92.82,1285.55,0.0,30.22,108.64,43.77,281.23,374.82,389.87,448.81,838.68],["1000","1010","SCHULR-4","SCHULER PRESS-04","C4552T138",722.0,"RS5","RS5-B","RS5-BLANKING","2026-10-13 10:57:39","2026-10-13 11:48:46",51.12,1285.55,0.0,16.66,59.89,24.13,155.03,206.62,214.92,247.41,462.33],["1000","1010","SCHULR-4","SCHULER PRESS-04","C4552T159",772.0,"RS5","RS5-B","RS5-BLANKING","2026-10-13 02:52:52","2026-10-13 04:13:27",80.58,1285.55,0.0,26.25,94.35,38.01,244.23,325.5,338.58,389.76,728.34],["1000","1010","SCHULR-4","SCHULER PRESS-04","C5532T121",738.0,"RS5","RS5-B","RS5-BLANKING","2026-10-13 01:05:33","2026-10-13 02:50:22",104.82,1285.55,0.0,34.12,122.63,49.4,317.46,423.1,440.09,506.62,946.71],["1000","1010","SCHULR-4","SCHULER PRESS-04","C5532T135",719.0,"RS5","RS5-B","RS5-BLANKING","2026-10-12 23:00:14","2026-10-13 01:03:56",123.7,1285.55,0.0,40.27,144.75,58.31,374.72,499.41,519.47,597.99,1117.46],["1000","1010","PBOWL-04","POLISHING BOWL-04","C4524T001",275.0,"NS12.5","PESO-500-RING-P","PESO 500 RING POLISHING","2026-10-13 17:00:11","2026-10-13 17:23:50",23.65,977.3,4.13,10.13,36.41,14.67,94.26,125.63,134.8,150.43,285.23],["1000","1010","PBOWL-04","POLISHING BOWL-04","C7854T001",530.0,"NS12.5","PESO-500-RING-P","PESO 500 RING POLISHING","2026-10-13 18:56:16","2026-10-13 20:14:34",78.3,977.3,13.66,33.53,120.53,48.56,312.01,415.83,446.2,497.92,944.12],["1000","1010","PBOWL-04","POLISHING BOWL-04","C7854T080",368.0,"NS12.5","PESO-500-RING-P","PESO 500 RING POLISHING","2026-10-13 17:59:46","2026-10-13 18:55:16",55.5,977.3,9.68,23.78,85.47,34.43,221.25,294.87,316.4,353.08,669.48],["1000","1010","PBOWL-04","POLISHING BOWL-04","C7856T002",314.0,"NS12.5","PESO-500-RING-P","PESO 500 RING POLISHING","2026-10-13 17:34:36","2026-10-13 17:58:48",24.2,977.3,4.23,10.38,37.32,15.03,96.6,128.75,138.15,154.16,292.31],["1000","1010","PBOWL-04","POLISHING BOWL-04","C7856T145",369.0,"NS12.5","PESO-500-RING-P","PESO 500 RING POLISHING","2026-10-13 00:38:54","2026-10-13 02:13:01",94.12,977.3,16.42,40.31,144.9,58.38,375.11,499.93,536.43,598.62,1135.05],["1000","1010","BAK","A-01 BAK ANN-01","C4524T046",275.0,"NS12.5","PESO-500-RING-A","PESO 500 RING ANNEALING","2026-10-13 14:31:21","2026-10-13 15:18:01",46.67,969.71,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],["1000","1010","BAK","A-01 BAK ANN-01","C7854T001",530.0,"NS12.5","PESO-500-RING-A","PESO 500 RING ANNEALING","2026-10-13 17:12:17","2026-10-13 18:03:18",51.02,969.71,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],["1000","1010","BAK","A-01 BAK ANN-01","C7854T080",368.0,"NS12.5","PESO-500-RING-A","PESO 500 RING ANNEALING","2026-10-13 16:23:01","2026-10-13 17:10:48",47.78,969.71,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],["1000","1010","BAK","A-01 BAK ANN-01","C7855T001",262.0,"NS12.5","PESO-500-RING-A","PESO 500 RING ANNEALING","2026-10-13 13:52:37","2026-10-13 14:29:41",37.07,969.71,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],["1000","1010","BAK","A-01 BAK ANN-01","C7856T002",314.0,"NS12.5","PESO-500-RING-A","PESO 500 RING ANNEALING","2026-10-13 15:19:55","2026-10-13 16:21:24",61.48,969.71,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],["1000","1010","PBOWL-03","POLISHING BOWL-03","C7851T041",363.0,"NS12.5","PESO-500-RING-W","PESO 500 RING WASHING","2026-10-13 19:19:57","2026-10-13 20:35:23",75.43,696.07,2988.24,48.49,163.11,65.71,422.24,562.74,3573.59,676.94,4250.53],["1000","1010","PBOWL-03","POLISHING BOWL-03","C7851T129",628.0,"NS12.5","PESO-500-RING-W","PESO 500 RING WASHING","2026-10-13 18:56:58","2026-10-13 19:19:13",22.25,696.07,882.14,14.32,48.15,19.4,124.65,166.12,1054.94,199.84,1254.78],["1000","1010","PBOWL-03","POLISHING BOWL-03","C7854T001",530.0,"NS12.5","PESO-500-RING-W","PESO 500 RING WASHING","2026-10-13 12:10:59","2026-10-13 13:01:56",50.95,696.07,2017.89,32.75,110.15,44.37,285.13,380.01,2413.17,457.13,2870.3],["1000","1010","PBOWL-03","POLISHING BOWL-03","C7854T112",299.0,"NS12.5","PESO-500-RING-W","PESO 500 RING WASHING","2026-10-13 17:44:00","2026-10-13 18:01:33",17.55,696.07,694.68,11.27,37.92,15.28,98.16,130.82,830.76,157.37,988.13],["1000","1010","PBOWL-03","POLISHING BOWL-03","C7856T002",361.0,"NS12.5","PESO-500-RING-W","PESO 500 RING WASHING","2026-10-13 13:04:40","2026-10-13 13:38:31",33.85,696.07,1339.75,21.74,73.13,29.46,189.31,252.3,1602.19,303.5,1905.69],["1000","1010","PBOWL-03","POLISHING BOWL-03","C7856T046",198.0,"NS12.5","PESO-500-RING-W","PESO 500 RING WASHING","2026-10-13 16:31:33","2026-10-13 16:59:02",27.48,696.07,1088.89,17.67,59.44,23.94,153.86,205.06,1302.19,246.67,1548.86],["1000","1010","PBOWL-03","POLISHING BOWL-03","C7856T080",36.0,"NS12.5","PESO-500-RING-W","PESO 500 RING WASHING","2026-10-13 13:44:13","2026-10-13 16:09:35",145.37,696.07,5755.94,93.41,314.19,126.57,813.32,1083.96,6883.45,1303.94,8187.39],["1000","1010","PBOWL-03","POLISHING BOWL-03","C7856T143",203.0,"NS12.5","PESO-500-RING-W","PESO 500 RING WASHING","2026-10-13 18:03:17","2026-10-13 18:23:37",20.33,696.07,804.95,13.06,43.94,17.7,113.74,151.59,962.63,182.35,1144.98],["1000","1010","RIMING-3","RIMMING M/C-03","C7847T067",401.0,"NS12.5","PESO-500-RING-R","PESO 500 RING RIMMING","2026-10-13 17:00:30","2026-10-13 17:42:29",41.98,839.62,0.0,20.93,75.24,30.31,194.76,259.57,270.0,310.81,580.81],["1000","1010","RIMING-3","RIMMING M/C-03","C7847T086",820.0,"NS12.5","PESO-500-RING-R","PESO 500 RING RIMMING","2026-10-13 15:24:46","2026-10-13 16:59:17",94.52,839.62,0.0,47.14,169.43,68.26,438.6,584.55,608.03,699.95,1307.98],["1000","1010","RIMING-3","RIMMING M/C-03","C7848T077",1380.0,"NS12.5","PESO-500-RING-R","PESO 500 RING RIMMING","2026-10-13 10:38:01","2026-10-13 15:23:35",285.57,839.62,0.0,142.37,511.76,206.16,1324.76,1765.58,1836.52,2114.11,3950.63],["1000","1010","RIMING-3","RIMMING M/C-03","C7849T144",1317.0,"NS12.5","PESO-500-RING-R","PESO 500 RING RIMMING","2026-10-13 06:10:45","2026-10-13 09:13:11",182.43,839.62,0.0,90.96,326.98,131.72,846.43,1128.08,1173.41,1350.76,2524.17],["1000","1010","MRV-7","MRV-07","C7851T041",363.0,"NS12.5","PESO-500-RING-RC","PESO 500 RING RING CUTTING","2026-10-13 11:04:32","2026-10-13 18:49:39",465.12,721.54,0.0,269.84,969.94,390.74,2510.85,3346.36,3480.79,4006.94,7487.73],["1000","1010","MRV-7","MRV-07","C7854T080",207.0,"NS12.5","PESO-500-RING-RC","PESO 500 RING RING CUTTING","2026-10-12 07:04:23","2026-10-13 04:57:59",1313.6,721.54,0.0,762.12,2739.49,1103.61,7091.6,9451.41,9831.09,11317.14,21148.23],["1000","1010","SCHULR-3","SCHULER PRESS-03","C7847T067",401.0,"NS12.5","PESO-500-RING-B","PESO 500 RING BLANKING","2026-10-13 11:38:59","2026-10-13 12:00:52",21.88,737.28,193.32,194.34,44.69,18.0,115.69,154.18,353.7,366.52,720.22],["1000","1010","SCHULR-3","SCHULER PRESS-03","C7847T086",398.0,"NS12.5","PESO-500-RING-B","PESO 500 RING BLANKING","2026-10-13 10:23:29","2026-10-13 10:59:29",36.0,737.28,317.64,319.31,73.43,29.58,190.09,253.34,581.16,602.23,1183.39],["1000","1010","BAK","A-01 BAK ANN-01","C4574T007",476.0,"NS05","RS10-RING-A","RS10-RING-ANNEALING","2026-10-13 18:59:19","2026-10-13 19:31:59",32.67,969.71,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],["1000","1010","BAK","A-01 BAK ANN-01","C4574T024",479.0,"NS05","RS10-RING-A","RS10-RING-ANNEALING","2026-10-13 19:33:41","2026-10-13 19:52:57",19.27,969.71,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],["1000","1010","BAK","A-01 BAK ANN-01","C4574T061",542.0,"NS05","RS10-RING-A","RS10-RING-ANNEALING","2026-10-13 20:45:17","2026-10-13 21:18:32",33.25,969.71,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],["1000","1010","BAK","A-01 BAK ANN-01","C4574T145",478.0,"NS05","RS10-RING-A","RS10-RING-ANNEALING","2026-10-13 20:13:22","2026-10-13 20:43:53",30.52,969.71,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],["1000","1010","SCHULR-1","SCHULER PRESS-01","C4574T007",479.0,"NS05","RS10-RING-B","RS10-RING-BLANKING","2026-10-13 09:55:58","2026-10-13 11:12:41",76.72,906.64,0.0,322.11,0.0,0.0,0.0,0.0,0.0,322.11,322.11],["1000","1010","SCHULR-1","SCHULER PRESS-01","C4574T024",476.0,"NS05","RS10-RING-B","RS10-RING-BLANKING","2026-10-13 07:40:37","2026-10-13 09:49:47",129.17,906.64,0.0,542.57,0.0,0.0,0.0,0.0,0.0,542.57,542.57],["1000","1010","SCHULR-1","SCHULER PRESS-01","C4574T061",542.0,"NS05","RS10-RING-B","RS10-RING-BLANKING","2026-10-13 12:19:11","2026-10-13 13:36:02",76.85,906.64,0.0,322.88,0.0,0.0,0.0,0.0,0.0,322.88,322.88],["1000","1010","SCHULR-1","SCHULER PRESS-01","C4574T122",494.0,"NS05","RS10-RING-B","RS10-RING-BLANKING","2026-10-13 13:36:48","2026-10-13 14:52:05",75.28,906.64,0.0,316.02,0.0,0.0,0.0,0.0,0.0,316.02,316.02],["1000","1010","SCHULR-1","SCHULER PRESS-01","C4574T145",478.0,"NS05","RS10-RING-B","RS10-RING-BLANKING","2026-10-13 11:13:42","2026-10-13 12:18:12",64.5,906.64,0.0,270.71,0.0,0.0,0.0,0.0,0.0,270.71,270.71],["1000","1010","SCHULR-1","SCHULER PRESS-01","C4574T152",480.0,"NS05","RS10-RING-B","RS10-RING-BLANKING","2026-10-13 14:54:00","2026-10-13 16:08:04",74.07,906.64,0.0,311.07,0.0,0.0,0.0,0.0,0.0,311.07,311.07],["1000","1010","SCHULR-1","SCHULER PRESS-01","C4575T001",480.0,"NS05","RS10-RING-B","RS10-RING-BLANKING","2026-10-13 20:01:06","2026-10-13 21:54:45",113.65,906.64,0.0,477.46,0.0,0.0,0.0,0.0,0.0,477.46,477.46],["1000","1010","SCHULR-1","SCHULER PRESS-01","C4575T014",530.0,"NS05","RS10-RING-B","RS10-RING-BLANKING","2026-10-13 16:08:52","2026-10-13 17:43:49",94.95,906.64,0.0,398.65,0.0,0.0,0.0,0.0,0.0,398.65,398.65],["1000","1010","SCHULR-1","SCHULER PRESS-01","C4575T102",700.0,"NS05","RS10-RING-B","RS10-RING-BLANKING","2026-10-13 17:45:50","2026-10-13 18:12:52",27.03,906.64,0.0,113.46,0.0,0.0,0.0,0.0,0.0,113.46,113.46],["1000","1010","SCHULR-1","SCHULER PRESS-01","C4575T157",495.0,"NS05","RS10-RING-B","RS10-RING-BLANKING","2026-10-13 21:55:22","2026-10-13 23:03:38",68.27,906.64,0.0,286.7,0.0,0.0,0.0,0.0,0.0,286.7,286.7],["1000","1010","SCHULR-1","SCHULER PRESS-01","C4575T166",535.0,"NS05","RS10-RING-B","RS10-RING-BLANKING","2026-10-13 18:40:53","2026-10-13 20:00:13",79.33,906.64,0.0,333.16,0.0,0.0,0.0,0.0,0.0,333.16,333.16],["1000","1010","CM-18","COIN MASTER-18","C03250T165",500.0,"RS10","RS10-ASSEMBLY","RS10-ASSEMBLY","2026-10-12 16:46:21","2026-10-13 06:35:46",829.42,1325.85,0.0,261.88,941.35,379.23,2436.84,3247.72,3378.19,3888.83,7267.02],["1000","1010","CM-18","COIN MASTER-18","C03262T165",510.0,"RS10","RS10-ASSEMBLY","RS10-ASSEMBLY","2026-10-13 06:37:51","2026-10-13 14:54:17",496.43,1325.85,0.0,156.73,563.37,226.95,1458.36,1943.65,2021.73,2327.33,4349.06],["1000","1010","MRV-1","MRV-01","C03248T049",1270.0,"RS10","RS10-ASSEMBLY","RS10-ASSEMBLY","2026-10-12 11:20:11","2026-10-13 05:03:38",1063.45,1063.45,0.0,418.61,1504.72,606.18,3895.2,5191.37,5399.92,6216.16,11616.08],["1000","1010","MRV-2","MRV-02","C03251T152",1337.0,"RS10","RS10-ASSEMBLY","RS10-ASSEMBLY","2026-10-12 18:02:58","2026-10-13 02:44:29",521.52,709.59,0.0,737.65,1105.97,445.54,2862.97,3815.66,3968.94,4998.85,8967.79],["1000","1010","MRV-2","MRV-02","C03256T039",200.0,"RS10","RS10-ASSEMBLY","RS10-ASSEMBLY","2026-10-13 02:46:25","2026-10-13 05:54:29",188.07,709.59,0.0,265.96,398.75,160.64,1032.23,1375.71,1430.98,1802.31,3233.29],["1000","1010","MRV-3","MRV-03","C03249T032",1322.0,"RS10","RS10-ASSEMBLY","RS10-ASSEMBLY","2026-10-12 14:45:47","2026-10-13 01:36:46",650.98,905.11,0.0,301.06,1082.19,435.96,2801.43,3733.63,3883.62,4470.65,8354.27],["1000","1010","MRV-3","MRV-03","C03254T033",400.0,"RS10","RS10-ASSEMBLY","RS10-ASSEMBLY","2026-10-13 01:37:44","2026-10-13 05:51:52",254.13,905.11,0.0,117.55,422.53,170.22,1093.77,1457.74,1516.3,1745.51,3261.81],["1000","1010","MRV-4","MRV-04","C03253T132",1360.0,"RS10","RS10-ASSEMBLY","RS10-ASSEMBLY","2026-10-12 23:44:36","2026-10-13 02:02:43",138.12,877.32,43.44,65.89,236.84,95.41,613.1,817.12,893.38,978.42,1871.8],["1000","1010","MRV-4","MRV-04","C03255T157",1000.0,"RS10","RS10-ASSEMBLY","RS10-ASSEMBLY","2026-10-13 02:04:09","2026-10-13 06:02:57",238.8,877.32,75.13,113.95,409.58,165.0,1060.27,1413.09,1544.98,1692.04,3237.02],["1000","1010","MRV-4","MRV-04","C03257T157",1.0,"RS10","RS10-ASSEMBLY","RS10-ASSEMBLY","2026-10-13 06:04:22","2026-10-13 14:24:46",500.4,877.32,157.43,238.78,858.29,345.77,2221.82,2961.16,3237.54,3545.71,6783.25],["1000","1010","CM-12","COIN MASTER-12","C03252T003",498.0,"RS10","RS10-ASSEMBLY","RS10-ASSEMBLY","2026-10-12 18:07:31","2026-10-13 17:13:48",1386.28,1386.28,0.0,566.35,911.66,820.13,5820.94,6602.9,6732.6,7989.38,14721.98],["1000","1010","CM-20","COIN MASTER-20","C03258T015",861.0,"RS10","RS10-ASSEMBLY","RS10-ASSEMBLY","2026-10-13 06:10:09","2026-10-13 14:56:02",525.88,525.88,0.0,418.61,1504.72,606.18,3895.2,5191.37,5399.92,6216.16,11616.08],["1000","1010","CM-10","COIN MASTER-10","C03243T067",1200.0,"RS10","RS10-ASSEMBLY","RS10-ASSEMBLY","2026-10-12 06:17:38","2026-10-13 06:04:47",1427.15,1427.15,0.0,566.35,911.66,820.13,5820.94,6602.9,6732.6,7989.38,14721.98],["1000","1010","RIMING-1","RIMMING M/C-01","C7862T022",749.0,"NS20","RS10-INNER-R","RS10-INNER-RIMMING","2026-10-13 11:56:24","2026-10-13 14:35:41",159.28,1639.61,0.0,40.65,146.11,58.86,378.22,504.08,524.33,603.59,1127.92],["1000","1010","RIMING-1","RIMMING M/C-01","C7862T079",772.0,"NS20","RS10-INNER-R","RS10-INNER-RIMMING","2026-10-13 14:36:59","2026-10-13 16:56:23",139.4,1639.61,0.0,35.58,127.9,51.53,331.09,441.27,458.99,528.38,987.37],["1000","1010","RIMING-1","RIMMING M/C-01","C7862T105",763.0,"NS20","RS10-INNER-R","RS10-INNER-RIMMING","2026-10-13 16:57:38","2026-10-13 22:07:15",309.62,1639.61,0.0,79.03,284.09,114.45,735.41,980.13,1019.5,1173.61,2193.11],["1000","1010","RIMING-1","RIMMING M/C-01","C7862T138",748.0,"NS20","RS10-INNER-R","RS10-INNER-RIMMING","2026-10-13 02:49:46","2026-10-13 06:29:48",220.03,1639.61,0.0,56.18,201.93,81.35,522.74,696.68,724.67,834.21,1558.88],["1000","1010","RIMING-1","RIMMING M/C-01","C7862T167",776.0,"NS20","RS10-INNER-R","RS10-INNER-RIMMING","2026-10-12 20:18:48","2026-10-13 02:42:02",383.23,1639.61,0.0,97.83,351.65,141.66,910.31,1213.22,1261.96,1452.71,2714.67],["1000","1010","RIMING-1","RIMMING M/C-01","C7865T158",742.0,"NS20","RS10-INNER-R","RS10-INNER-RIMMING","2026-10-13 06:33:55","2026-10-13 11:54:50",320.92,1639.61,0.0,81.92,294.47,118.63,762.29,1015.95,1056.76,1216.5,2273.26],["1000","1010","RIMING-1","RIMMING M/C-01","C7867T004",750.0,"NS20","RS10-INNER-R","RS10-INNER-RIMMING","2026-10-13 22:09:25","2026-10-13 23:56:33",107.13,1639.61,0.0,27.34,98.26,39.58,254.36,339.0,352.62,405.92,758.54],["1000","1010","RIMING-4","RIMMING M/C-04","C4574T007",479.0,"NS05","RS10-RING-R","RS10-RING-RIMMING","2026-10-13 13:01:08","2026-10-13 14:51:39",110.52,709.82,0.0,65.18,234.28,94.38,606.48,808.3,840.76,967.86,1808.62],["1000","1010","RIMING-4","RIMMING M/C-04","C4574T024",476.0,"NS05","RS10-RING-R","RS10-RING-RIMMING","2026-10-13 11:04:20","2026-10-13 13:00:31",116.18,709.82,0.0,68.53,246.32,99.23,637.64,849.83,883.96,1017.59,1901.55],["1000","1010","RIMING-4","RIMMING M/C-04","C4574T061",542.0,"NS05","RS10-RING-R","RS10-RING-RIMMING","2026-10-13 16:47:19","2026-10-13 19:30:11",162.87,709.82,0.0,96.07,345.33,139.12,893.95,1191.42,1239.28,1426.61,2665.89],["1000","1010","RIMING-4","RIMMING M/C-04","C4574T122",494.0,"NS05","RS10-RING-R","RS10-RING-RIMMING","2026-10-13 19:31:17","2026-10-13 20:31:01",59.73,709.82,0.0,35.21,126.55,50.98,327.59,436.59,454.14,522.78,976.92],["1000","1010","RIMING-4","RIMMING M/C-04","C4574T145",478.0,"NS05","RS10-RING-R","RS10-RING-RIMMING","2026-10-13 15:30:29","2026-10-13 16:45:59",75.5,709.82,0.0,44.54,160.1,64.5,414.45,552.36,574.55,661.4,1235.95],["1000","1010","RIMING-4","RIMMING M/C-04","C4574T152",480.0,"NS05","RS10-RING-R","RS10-RING-RIMMING","2026-10-13 20:47:05","2026-10-13 22:20:15",93.17,709.82,0.0,54.96,197.57,79.59,511.44,681.63,709.01,816.18,1525.19],["1000","1010","RIMING-4","RIMMING M/C-04","C4575T014",530.0,"NS05","RS10-RING-R","RS10-RING-RIMMING","2026-10-13 22:21:22","2026-10-13 23:53:13",91.85,709.82,0.0,54.17,194.71,78.44,504.04,671.76,698.75,804.37,1503.12],["1000","1010","SCHULR-1","SCHULER PRESS-01","C7848T077",459.0,"NS12.5","PESO-500-RING-B","PESO 500 RING BLANKING","2026-10-13 04:44:08","2026-10-13 05:10:57",26.82,906.64,0.0,12.39,44.54,17.94,115.3,153.66,159.84,183.99,343.83],["1000","1010","CM-16","COIN MASTER-16","C7854T046",299.0,"NS12.5","PESO-500-RING-RC","PESO 500 RING RING CUTTING","2026-10-12 10:19:27","2026-10-13 14:14:32",1675.08,1675.08,0.0,566.35,911.66,820.13,5820.94,6602.9,6732.6,7989.38,14721.98],["1000","1010","CM-08","COIN MASTER-08","C7851T129",628.0,"NS12.5","PESO-500-RING-RC","PESO 500 RING RING CUTTING","2026-10-13 07:00:33","2026-10-13 18:13:42",673.15,1479.98,0.0,257.58,414.62,373.0,2647.36,3003.0,3061.98,3633.58,6695.56],["1000","1010","CM-08","COIN MASTER-08","C7856T002",361.0,"NS12.5","PESO-500-RING-RC","PESO 500 RING RING CUTTING","2026-10-12 15:37:37","2026-10-13 05:04:27",806.83,1479.98,0.0,308.77,497.04,447.13,3173.58,3599.9,3670.62,4355.8,8026.42],["1000","1010","SCHULR-3","SCHULER PRESS-03","C6331T025",799.0,"NS3.8","RM-BLANK-8.5GM-B1","ROYAL MINT BLANK 8.5 GRAM - BLANKING 1","2026-10-13 22:41:16","2026-10-13 23:12:39",31.38,737.28,277.28,278.74,64.1,25.82,165.94,221.15,507.32,525.71,1033.03],["1000","1010","SCHULR-3","SCHULER PRESS-03","C6332T084",701.0,"NS3.8","RM-BLANK-8.5GM-B1","ROYAL MINT BLANK 8.5 GRAM - BLANKING 1","2026-10-13 17:41:12","2026-10-13 18:10:10",28.97,737.28,255.8,257.15,59.14,23.82,153.08,204.02,468.02,484.99,953.01],["1000","1010","SCHULR-3","SCHULER PRESS-03","C6332T114",464.0,"NS3.8","RM-BLANK-8.5GM-B1","ROYAL MINT BLANK 8.5 GRAM - BLANKING 1","2026-10-12 19:36:56","2026-10-13 02:02:58",386.03,737.28,3408.11,3426.06,787.87,317.4,2039.53,2718.2,6235.51,6461.66,12697.17],["1000","1010","SCHULR-3","SCHULER PRESS-03","C6333T116",812.0,"NS3.8","RM-BLANK-8.5GM-B1","ROYAL MINT BLANK 8.5 GRAM - BLANKING 1","2026-10-13 18:11:42","2026-10-13 18:52:39",40.95,737.28,361.25,363.15,83.51,33.64,216.18,288.12,660.94,684.91,1345.85],["1000","1010","SCHULR-3","SCHULER PRESS-03","C6333T133",898.0,"NS3.8","RM-BLANK-8.5GM-B1","ROYAL MINT BLANK 8.5 GRAM - BLANKING 1","2026-10-13 18:55:05","2026-10-13 19:46:15",51.17,737.28,451.72,454.1,104.43,42.07,270.33,360.28,826.48,856.45,1682.93],["1000","1010","SCHULR-3","SCHULER PRESS-03","C6334T080",903.0,"NS3.8","RM-BLANK-8.5GM-B1","ROYAL MINT BLANK 8.5 GRAM - BLANKING 1","2026-10-13 19:55:14","2026-10-13 21:40:23",105.15,737.28,928.18,933.07,214.57,86.44,555.46,740.29,1698.21,1759.8,3458.01],["1000","1010","SCHULR-3","SCHULER PRESS-03","C6334T095",712.0,"NS3.8","RM-BLANK-8.5GM-B1","ROYAL MINT BLANK 8.5 GRAM - BLANKING 1","2026-10-13 21:54:19","2026-10-13 22:34:09",39.83,737.28,351.49,353.34,81.25,32.73,210.34,280.33,643.08,666.4,1309.48],["1000","1010","MRV-5","MRV-05","C6330T042",351.0,"NS3.8","RM-RING-5.01GM-RC","ROYAL MINT RING 5.01 GRAM - RING CUTTING","2026-10-12 18:54:44","2026-10-13 04:52:14",597.5,2814.26,270.85,88.87,319.45,128.69,826.95,1102.13,1417.25,1319.69,2736.94],["1000","1010","MRV-5","MRV-05","C6332T160",223.0,"NS3.8","RM-RING-5.01GM-RC","ROYAL MINT RING 5.01 GRAM - RING CUTTING","2026-10-13 05:42:11","2026-10-13 19:11:49",809.63,2814.26,367.05,120.43,432.91,174.4,1120.65,1493.56,1920.61,1788.39,3709.0],["1000","1010","MRV-5","MRV-05","C6330T001",205.0,"NS3.8","RM-CORE-3.58GM-B","ROYAL MINT CORE 3.58 GRAM - BLANKING","2026-10-12 18:54:44","2026-10-13 04:52:14",597.5,2814.26,270.85,88.87,319.45,128.69,826.95,1102.13,1417.25,1319.69,2736.94],["1000","1010","MRV-5","MRV-05","C6332T151",213.0,"NS3.8","RM-CORE-3.58GM-B","ROYAL MINT CORE 3.58 GRAM - BLANKING","2026-10-13 05:42:11","2026-10-13 19:11:49",809.63,2814.26,367.05,120.43,432.91,174.4,1120.65,1493.56,1920.61,1788.39,3709.0],["1000","1010","RIMING-5","RIMMING M/C-05","C4559T133",891.0,"NS02","COLONS-100-CORE-R","100-COLONS-CORE-RIMMING","2026-10-12 22:58:19","2026-10-13 00:46:49",108.5,978.89,0.0,46.38,166.72,67.16,431.59,575.2,598.31,688.74,1287.05],["1000","1010","RIMING-5","RIMMING M/C-05","C4560T087",1074.0,"NS02","COLONS-100-CORE-R","100-COLONS-CORE-RIMMING","2026-10-13 19:15:12","2026-10-13 22:04:49",169.62,978.89,0.0,72.55,260.77,105.05,675.04,899.66,935.81,1077.26,2013.07],["1000","1010","RIMING-5","RIMMING M/C-05","C4562T023",1223.0,"NS02","COLONS-100-CORE-R","100-COLONS-CORE-RIMMING","2026-10-13 10:08:52","2026-10-13 13:02:22",173.5,978.89,0.0,74.18,266.64,107.42,690.23,919.91,956.87,1101.51,2058.38],["1000","1010","RIMING-5","RIMMING M/C-05","C4562T090",603.0,"NS02","COLONS-100-CORE-R","100-COLONS-CORE-RIMMING","2026-10-13 13:42:58","2026-10-13 15:25:29",102.52,978.89,0.0,43.83,157.54,63.47,407.83,543.54,565.37,650.84,1216.21],["1000","1010","RIMING-5","RIMMING M/C-05","C4563T069",548.0,"NS02","COLONS-100-CORE-R","100-COLONS-CORE-RIMMING","2026-10-13 15:26:05","2026-10-13 16:37:15",71.17,978.89,0.0,30.43,109.39,44.07,283.18,377.41,392.57,451.91,844.48],["1000","1010","RIMING-5","RIMMING M/C-05","C4563T153",1191.0,"NS02","COLONS-100-CORE-R","100-COLONS-CORE-RIMMING","2026-10-13 06:07:14","2026-10-13 07:43:43",96.48,978.89,0.0,41.27,148.37,59.77,384.07,511.87,532.44,612.91,1145.35],["1000","1010","RIMING-5","RIMMING M/C-05","C4564T082",794.0,"NS02","COLONS-100-CORE-R","100-COLONS-CORE-RIMMING","2026-10-13 00:47:29","2026-10-13 02:30:20",102.85,978.89,0.0,44.0,158.15,63.71,409.39,545.61,567.54,653.32,1220.86],["1000","1010","RIMING-5","RIMMING M/C-05","C4564T083",809.0,"NS02","COLONS-100-CORE-R","100-COLONS-CORE-RIMMING","2026-10-13 02:39:54","2026-10-13 04:07:47",87.88,978.89,0.0,37.59,135.12,54.43,349.79,466.19,484.91,558.21,1043.12],["1000","1010","RIMING-5","RIMMING M/C-05","C4564T134",802.0,"NS02","COLONS-100-CORE-R","100-COLONS-CORE-RIMMING","2026-10-13 04:15:10","2026-10-13 05:21:32",66.37,978.89,0.0,28.38,102.02,41.1,264.09,351.97,366.11,421.45,787.56],["1000","1010","RIMING-6","RIMMING M/C-06","C4563T093",598.0,"NS02","COLONS-100-CORE-R","100-COLONS-CORE-RIMMING","2026-10-13 07:57:30","2026-10-13 09:59:11",121.68,294.84,0.0,172.76,621.0,250.17,1607.55,2142.48,2228.55,2565.41,4793.96],["1000","1010","RIMING-6","RIMMING M/C-06","C4563T161",1042.0,"NS02","COLONS-100-CORE-R","100-COLONS-CORE-RIMMING","2026-10-13 14:09:24","2026-10-13 16:23:05",133.68,294.84,0.0,189.8,682.24,274.84,1766.08,2353.77,2448.32,2818.41,5266.73],["1000","1010","RIMING-6","RIMMING M/C-06","C4564T110",735.0,"NS02","COLONS-100-CORE-R","100-COLONS-CORE-RIMMING","2026-10-13 06:06:40","2026-10-13 06:46:09",39.48,294.84,0.0,56.05,201.48,81.17,521.57,695.12,723.05,832.34,1555.39],["1000","1010","SCHULR-2","SCHULER PRESS-02","C4541T110",726.0,"RS5","RS5-B","RS5-BLANKING","2026-10-13 21:25:43","2026-10-13 23:00:05",94.37,686.78,0.0,57.52,206.75,83.29,535.2,713.29,741.95,854.1,1596.05],["1000","1010","RIMING-3","RIMMING M/C-03","C6332T062",436.0,"NS3.8","RM-BLANK-8.5GM-R1","ROYAL MINT BLANK 8.5 GRAM - RIMMING 1","2026-10-13 00:32:04","2026-10-13 01:00:20",28.27,839.62,0.0,14.11,50.71,20.43,131.27,174.95,181.98,209.49,391.47],["1000","1010","RIMING-3","RIMMING M/C-03","C6332T084",701.0,"NS3.8","RM-BLANK-8.5GM-R1","ROYAL MINT BLANK 8.5 GRAM - RIMMING 1","2026-10-13 20:31:51","2026-10-13 21:36:47",64.93,839.62,0.0,32.36,116.31,46.86,301.1,401.29,417.41,480.51,897.92],["1000","1010","RIMING-3","RIMMING M/C-03","C6332T114",464.0,"NS3.8","RM-BLANK-8.5GM-R1","ROYAL MINT BLANK 8.5 GRAM - RIMMING 1","2026-10-13 19:29:47","2026-10-13 20:30:15",60.47,839.62,0.0,30.14,108.34,43.64,280.45,373.78,388.79,447.56,836.35],["1000","1010","RIMING-3","RIMMING M/C-03","C6333T116",812.0,"NS3.8","RM-BLANK-8.5GM-R1","ROYAL MINT BLANK 8.5 GRAM - RIMMING 1","2026-10-13 21:37:41","2026-10-13 22:59:08",81.45,839.62,0.0,40.61,145.96,58.8,377.83,503.56,523.79,602.97,1126.76],["1000","1010","CM-07","COIN MASTER-07","C7854T001",530.0,"NS12.5","PESO-500-RING-RC","PESO 500 RING RING CUTTING","2026-10-12 06:34:19","2026-10-13 02:49:17",1214.97,1896.55,0.0,6384.44,584.01,525.38,3728.89,4229.82,4312.9,11139.64,15452.54],["1000","1010","CM-07","COIN MASTER-07","C7856T143",36.0,"NS12.5","PESO-500-RING-RC","PESO 500 RING RING CUTTING","2026-10-13 02:50:23","2026-10-13 05:08:46",138.38,1896.55,0.0,727.54,66.55,59.87,424.93,482.01,491.48,1269.42,1760.9],["1000","1010","P-COIN","COIN PACKING","C6330D0045",400.0,"NS3.8","FG-ROYALMINT-25230","V25230 Nickel Brass Outer RFS","2026-10-13 03:16:46","2026-10-13 03:17:27",0.68,43.41,1571.22,6.57,23.62,9.52,647.52,81.5,2242.36,97.59,2339.95],["1000","1010","P-COIN","COIN PACKING","C6330D0046",400.0,"NS3.8","FG-ROYALMINT-25230","V25230 Nickel Brass Outer RFS","2026-10-13 03:17:44","2026-10-13 03:18:02",0.3,43.41,690.53,2.89,10.38,4.18,284.58,35.82,985.49,42.89,1028.38],["1000","1010","P-COIN","COIN PACKING","C6330D0047",400.0,"NS3.8","FG-ROYALMINT-25230","V25230 Nickel Brass Outer RFS","2026-10-13 09:52:19","2026-10-13 09:53:06",0.78,43.41,1801.39,7.53,27.08,10.91,742.38,93.44,2570.85,111.88,2682.73],["1000","1010","P-COIN","COIN PACKING","C6331D0048",400.0,"NS3.8","FG-ROYALMINT-25230","V25230 Nickel Brass Outer RFS","2026-10-13 09:56:12","2026-10-13 09:57:22",1.17,43.41,2702.09,11.3,40.63,16.37,1113.57,140.17,3856.29,167.84,4024.13],["1000","1010","PBOWL-03","POLISHING BOWL-03","C6331T160",387.0,"NS3.8","RM-RING-5.01GM-P","ROYAL MINT RING 5.01 GRAM - POLISHING","2026-10-13 21:45:44","2026-10-13 21:49:55",4.18,696.07,165.4,2.68,9.03,3.64,23.37,31.15,197.8,37.47,235.27],["1000","1010","PBOWL-03","POLISHING BOWL-03","C6333T037",419.0,"NS3.8","RM-RING-5.01GM-P","ROYAL MINT RING 5.01 GRAM - POLISHING","2026-10-13 21:51:06","2026-10-13 21:57:03",5.95,696.07,234.32,3.8,12.79,5.15,33.11,44.13,280.22,53.08,333.3],["1000","1010","BAK","A-01 BAK ANN-01","C6330T035",255.0,"NS3.8","RM-RING-5.01GM-A","ROYAL MINT RING 5.01 GRAM - ANNEALING","2026-10-13 21:47:48","2026-10-13 21:55:04",7.27,969.71,0.0,3.14,70.67,4.55,29.21,38.94,99.88,46.63,146.51],["1000","1010","BAK","A-01 BAK ANN-01","C6331T138",387.0,"NS3.8","RM-RING-5.01GM-A","ROYAL MINT RING 5.01 GRAM - ANNEALING","2026-10-13 00:18:22","2026-10-13 09:54:36",576.23,969.71,0.0,248.74,5599.06,360.19,2314.53,3084.71,7913.59,3693.64,11607.23],["1000","1010","BAK","A-01 BAK ANN-01","C6332T058",353.0,"NS3.8","RM-RING-5.01GM-A","ROYAL MINT RING 5.01 GRAM - ANNEALING","2026-10-13 21:56:25","2026-10-13 22:04:24",7.98,969.71,0.0,3.43,77.27,4.97,31.94,42.57,109.21,50.97,160.18],["1000","1010","BAK","A-01 BAK ANN-01","C6333T023",419.0,"NS3.8","RM-RING-5.01GM-A","ROYAL MINT RING 5.01 GRAM - ANNEALING","2026-10-13 21:27:55","2026-10-13 21:46:25",18.5,969.71,0.0,8.0,179.98,11.58,74.4,99.16,254.38,118.74,373.12],["1000","1010","MRV-6","MRV-06","C6331T117",320.0,"NS3.8","RM-RING-5.01GM-RC","ROYAL MINT RING 5.01 GRAM - RING CUTTING","2026-10-13 13:43:38","2026-10-13 19:24:33",340.92,3282.16,0.0,2170.85,156.34,62.98,404.71,539.38,561.05,2773.21,3334.26],["1000","1010","MRV-6","MRV-06","C6332T128",733.0,"NS3.8","RM-RING-5.01GM-RC","ROYAL MINT RING 5.01 GRAM - RING CUTTING","2026-10-13 09:05:09","2026-10-13 13:32:23",267.23,3282.16,0.0,1700.74,122.48,49.34,317.07,422.58,439.55,2172.66,2612.21],["1000","1010","MRV-6","MRV-06","C6334T119",365.0,"NS3.8","RM-RING-5.01GM-RC","ROYAL MINT RING 5.01 GRAM - RING CUTTING","2026-10-12 11:41:47","2026-10-13 04:54:43",1032.93,3282.16,0.0,6575.22,473.54,190.76,1225.82,1633.72,1699.36,8399.7,10099.06],["1000","1010","MRV-6","MRV-06","C6331T162",295.0,"NS3.8","RM-CORE-3.58GM-B","ROYAL MINT CORE 3.58 GRAM - BLANKING","2026-10-13 13:43:38","2026-10-13 19:24:33",340.92,3282.16,0.0,2170.85,156.34,62.98,404.71,539.38,561.05,2773.21,3334.26],["1000","1010","MRV-6","MRV-06","C6332T106",532.0,"NS3.8","RM-CORE-3.58GM-B","ROYAL MINT CORE 3.58 GRAM - BLANKING","2026-10-13 09:05:09","2026-10-13 13:32:23",267.23,3282.16,0.0,1700.74,122.48,49.34,317.07,422.58,439.55,2172.66,2612.21],["1000","1010","MRV-6","MRV-06","C6334T001",257.0,"NS3.8","RM-CORE-3.58GM-B","ROYAL MINT CORE 3.58 GRAM - BLANKING","2026-10-12 11:41:47","2026-10-13 04:54:43",1032.93,3282.16,0.0,6575.22,473.54,190.76,1225.82,1633.72,1699.36,8399.7,10099.06],["1000","1010","CM-11","COIN MASTER-11","C7856T112",198.0,"NS12.5","PESO-500-RING-RC","PESO 500 RING RING CUTTING","2026-10-12 15:35:48","2026-10-13 05:14:22",818.57,662.03,0.0,700.29,1127.27,1014.09,7197.59,8164.49,8324.86,9878.87,18203.73],["1000","1010","CM-14","COIN MASTER-14","C6333T085",58.0,"NS3.8","RM-RING-5.01GM-RC","ROYAL MINT RING 5.01 GRAM - RING CUTTING","2026-10-12 07:18:36","2026-10-13 12:37:42",1759.1,109760.17,0.0,9.06,14.59,13.12,93.14,105.65,107.73,127.83,235.56],["1000","1010","CM-14","COIN MASTER-14","C6333T072",42.0,"NS3.8","RM-CORE-3.58GM-B","ROYAL MINT CORE 3.58 GRAM - BLANKING","2026-10-12 07:18:36","2026-10-13 12:37:42",1759.1,109760.17,0.0,9.06,14.59,13.12,93.14,105.65,107.73,127.83,235.56],["1000","1010","PBOWL-04","POLISHING BOWL-04","C4554T086",999.0,"NS02","COLONS-100-CORE-P","100-COLONS-CORE-POLISHING","2026-10-13 02:15:29","2026-10-13 03:49:10",93.68,977.3,16.35,40.14,144.3,58.13,373.55,497.85,534.2,596.12,1130.32],["1000","1010","PBOWL-04","POLISHING BOWL-04","C4555T076",486.0,"NS02","COLONS-100-CORE-P","100-COLONS-CORE-POLISHING","2026-10-13 03:51:49","2026-10-13 05:15:23",83.57,977.3,14.58,35.79,128.65,51.83,333.04,443.86,476.27,531.48,1007.75],["1000","1010","PBOWL-04","POLISHING BOWL-04","C4556T082",1332.0,"NS02","COLONS-100-CORE-P","100-COLONS-CORE-POLISHING","2026-10-13 09:52:28","2026-10-13 13:44:32",232.07,977.3,40.49,99.42,357.37,143.97,925.11,1232.95,1322.97,1476.34,2799.31],["1000","1010","PBOWL-04","POLISHING BOWL-04","C4556T133",670.0,"NS02","COLONS-100-CORE-P","100-COLONS-CORE-POLISHING","2026-10-13 07:22:26","2026-10-13 07:54:18",31.87,977.3,5.56,13.65,49.05,19.76,126.98,169.24,181.59,202.65,384.24],["1000","1010","PBOWL-04","POLISHING BOWL-04","C4557T133",651.0,"NS02","COLONS-100-CORE-P","100-COLONS-CORE-POLISHING","2026-10-13 05:17:01","2026-10-13 06:24:06",67.08,977.3,11.7,28.72,103.22,41.58,267.21,356.13,382.13,426.43,808.56],["1000","1010","PBOWL-04","POLISHING BOWL-04","C4559T062",896.0,"NS02","COLONS-100-CORE-P","100-COLONS-CORE-POLISHING","2026-10-13 20:36:42","2026-10-13 21:13:24",36.7,977.3,6.41,15.74,56.58,22.79,146.46,195.2,209.45,233.73,443.18],["1000","1010","PBOWL-04","POLISHING BOWL-04","C4559T133",891.0,"NS02","COLONS-100-CORE-P","100-COLONS-CORE-POLISHING","2026-10-13 21:14:23","2026-10-13 21:28:45",14.37,977.3,2.51,6.15,22.12,8.91,57.26,76.31,81.89,91.37,173.26],["1000","1010","PBOWL-04","POLISHING BOWL-04","C4559T153",902.0,"NS02","COLONS-100-CORE-P","100-COLONS-CORE-POLISHING","2026-10-13 20:15:56","2026-10-13 20:35:53",19.95,977.3,3.48,8.54,30.7,12.37,79.46,105.9,113.64,126.81,240.45],["1000","1010","PBOWL-04","POLISHING BOWL-04","C4564T082",794.0,"NS02","COLONS-100-CORE-P","100-COLONS-CORE-POLISHING","2026-10-13 08:03:22","2026-10-13 09:51:11",107.82,977.3,18.81,46.17,165.97,66.86,429.64,572.61,614.42,685.64,1300.06],["1000","1010","PBOWL-04","POLISHING BOWL-04","C4564T111",735.0,"NS02","COLONS-100-CORE-P","100-COLONS-CORE-POLISHING","2026-10-13 21:29:59","2026-10-13 21:44:24",14.42,977.3,2.52,6.2,22.27,8.97,57.65,76.83,82.44,92.0,174.44]],"source":"coim.pdf","at":"2026-10-14T06:14:00.000Z"}};
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const rs0=n=>'₹'+Math.round(n).toLocaleString('en-IN');
+const rs2=n=>'₹'+n.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
+const kgf=n=>Math.round(n).toLocaleString('en-IN');
+const fmtDate=iso=>{const p=iso.split('-');return (+p[2])+' '+MON[+p[1]-1]+' '+p[0]};
+const shortRs=n=>n>=1e7?'₹'+(n/1e7).toFixed(1)+' Cr':n>=1e5?'₹'+(n/1e5).toFixed(n>=1e6?1:2)+' L':n>=1e3?'₹'+Math.round(n/1e3)+'k':'₹'+Math.round(n);
+
+/* ---------- operation derived from work center and material description ---------- */
+const opCache=new Map();
+function opOf(wcText,desc){
+  const key=wcText+'|'+desc; let v=opCache.get(key); if(v) return v;
+  const d=String(desc).toUpperCase();
+  if(String(wcText).toUpperCase().includes('PACKING')) v='Packing';
+  else{
+    v='Other';
+    for(const [k,o] of [['RING CUTTING','Ring cutting'],['ASSEMBLY','Assembly'],['WASHING','Washing'],['POLISHING','Polishing'],['ANNEALING','Annealing'],['RIMMING','Rimming'],['BLANKING','Blanking']]){ if(d.includes(k)){v=o;break} }
+  }
+  opCache.set(key,v); return v;
+}
+
+/* ---------- state ---------- */
+const S={view:'day',date:null,plant:'',op:'',grp:'',metric:'cost',q:'',sortKey:'amt',sortDir:-1,limit:100};
+let db=null,dl=null,canWrite=true,remote=null,local={},sess={};
+let days={},dayKeys=[],entryCache=new Map();
+const LS='coinplant_batch_days_v1';
+try{const t=localStorage.getItem(LS); if(t) local=JSON.parse(t)||{}}catch(e){local={}}
+function saveLocal(){try{localStorage.setItem(LS,JSON.stringify(local))}catch(e){}}
+
+function rebuildDays(){
+  const base=(remote&&Object.keys(remote).length)?remote:(SEED||{});
+  const out={};
+  for(const k in base) out[k]=base[k];
+  for(const k in local){ if(local[k]===null) delete out[k]; else out[k]=local[k]; }
+  for(const k in sess){ if(sess[k]===null) delete out[k]; else out[k]=sess[k]; }
+  days=out; dayKeys=Object.keys(days).sort(); entryCache=new Map();
+  if(!dayKeys.length) S.date=null;
+  else if(!S.date||!days[S.date]) S.date=dayKeys[dayKeys.length-1];
+}
+function entries(date){
+  let e=entryCache.get(date);
+  if(!e){ e=days[date].rows.map(r=>({d:date,r:r,op:opOf(r[3],r[8])})); entryCache.set(date,e); }
+  return e;
+}
+const passes=e=>(!S.plant||e.r[1]===S.plant)&&(!S.op||e.op===S.op)&&(!S.grp||e.r[6]===S.grp);
+function scopeDates(){ return S.view==='all'?dayKeys:(S.date?[S.date]:[]); }
+function scopeEntries(dates){ const out=[]; for(const d of dates){ for(const e of entries(d)) if(passes(e)) out.push(e); } return out; }
+
+/* ---------- aggregation ---------- */
+function agg(list,keyFn){
+  const m=new Map();
+  for(const e of list){
+    const k=keyFn(e); let a=m.get(k);
+    if(!a){a={k:k,n:0,qty:0,amt:0,run:0,store:0,power:0,lab:0};m.set(k,a)}
+    const r=e.r; a.n++; a.qty+=r[5]; a.amt+=r[21]; a.run+=r[11]; a.store+=r[13]+r[14]; a.power+=r[15]+r[16]; a.lab+=r[17]+r[18];
+  }
+  return Array.from(m.values());
+}
+const total=list=>agg(list,()=>1)[0]||{n:0,qty:0,amt:0,run:0,store:0,power:0,lab:0};
+const rate=a=>a.qty>0?a.amt/a.qty:0;
+const median=a=>{const s=a.slice().sort((x,y)=>x-y);const n=s.length;return n?(n%2?s[(n-1)/2]:(s[n/2-1]+s[n/2])/2):0};
+
+/* ---------- tooltip ---------- */
+const tip=$('tip');
+function placeTip(x,y){
+  const w=tip.offsetWidth,h=tip.offsetHeight;
+  let px=x+14,py=y+14;
+  if(px+w>innerWidth-8) px=x-w-14;
+  if(py+h>innerHeight-8) py=y-h-14;
+  tip.style.left=Math.max(8,px)+'px'; tip.style.top=Math.max(8,py)+'px';
+}
+document.addEventListener('pointermove',e=>{
+  const t=e.target.closest&&e.target.closest('[data-tip]');
+  if(!t){tip.hidden=true;return}
+  tip.textContent=t.getAttribute('data-tip'); tip.hidden=false; placeTip(e.clientX,e.clientY);
+});
+document.addEventListener('focusin',e=>{
+  const t=e.target.closest&&e.target.closest('[data-tip]'); if(!t) return;
+  tip.textContent=t.getAttribute('data-tip'); tip.hidden=false;
+  const r=t.getBoundingClientRect(); placeTip(r.left+Math.min(r.width,200),r.bottom-6);
+});
+document.addEventListener('focusout',()=>{tip.hidden=true});
+window.addEventListener('scroll',()=>{tip.hidden=true},{passive:true});
+document.addEventListener('pointerleave',()=>{tip.hidden=true});
+
+/* ---------- messages ---------- */
+function setMsg(text,kind){
+  const el=$('msg');
+  if(!text){el.innerHTML='';return}
+  el.innerHTML='<div class="msg'+(kind==='err'?' err':'')+'"><b>'+(kind==='err'?'Could not load':'Done')+'</b><span>'+esc(text)+'</span></div>';
+}
+
+/* ---------- filters ---------- */
+function fillSelect(el,opts,cur,allLabel){
+  const html=['<option value="">'+esc(allLabel)+'</option>'].concat(opts.map(o=>'<option value="'+esc(o)+'">'+esc(o)+'</option>')).join('');
+  el.innerHTML=html; el.value=opts.includes(cur)?cur:'';
+  return el.value;
+}
+function renderControls(){
+  const plants=new Set(),ops=new Set(),grps=new Set();
+  for(const d of dayKeys) for(const e of entries(d)){plants.add(e.r[1]);ops.add(e.op);grps.add(e.r[6])}
+  S.plant=fillSelect($('fPlant'),Array.from(plants).sort(),S.plant,'All plants');
+  S.op=fillSelect($('fOp'),Array.from(ops).sort(),S.op,'All operations');
+  S.grp=fillSelect($('fGrp'),Array.from(grps).sort(),S.grp,'All groups');
+  const fd=$('fDate');
+  fd.innerHTML=dayKeys.slice().reverse().map(d=>'<option value="'+d+'">'+fmtDate(d)+'</option>').join('');
+  if(S.date) fd.value=S.date;
+  fd.disabled=S.view==='all'||!dayKeys.length;
+  $('fView').value=S.view;
+}
+
+/* ---------- KPIs ---------- */
+function delta(cur,prev,label,inverse){
+  if(prev==null||!isFinite(prev)||prev===0) return '';
+  const p=(cur-prev)/prev*100;
+  if(Math.abs(p)<0.05) return 'No change vs '+label;
+  return (p>0?'▲ ':'▼ ')+Math.abs(p).toFixed(1)+'% vs '+label;
+}
+function renderKpis(){
+  const list=scopeEntries(scopeDates()), t=total(list);
+  let prevT=null,plabel='';
+  if(S.view==='day'&&S.date){
+    const i=dayKeys.indexOf(S.date);
+    if(i>0){prevT=total(scopeEntries([dayKeys[i-1]]));plabel=fmtDate(dayKeys[i-1])}
+  }
+  const none='<span>'+(S.view==='day'?'No earlier day loaded to compare':'Across all days loaded')+'</span>';
+  const tile=(l,v,d,sub)=>'<div class="kpi"><div class="l">'+l+'</div><div class="v">'+v+'</div><div class="d">'+(d||sub)+'</div></div>';
+  $('kpis').innerHTML=
+    tile('Total cost',rs0(t.amt),prevT?delta(t.amt,prevT.amt,plabel):'',none)+
+    tile('Cost per kg',rs2(rate(t)),prevT?delta(rate(t),rate(prevT),plabel):'','Total cost ÷ processed kg')+
+    tile('Processed quantity',kgf(t.qty)+' kg',prevT?delta(t.qty,prevT.qty,plabel):'','Summed over every operation')+
+    tile('Batches',kgf(t.n),prevT?delta(t.n,prevT.n,plabel):'',t.n?'Rows in the export':'')+
+    tile('Batch run time',(t.run/60).toFixed(1)+' h',prevT?delta(t.run,prevT.run,plabel):'','Sum of batch run minutes');
+}
+
+/* ---------- bar charts ---------- */
+function barsHtml(items,maxV,mk){
+  if(!items.length) return '<div class="empty">No batches match these filters.</div>';
+  return items.map(mk).join('');
+}
+function renderOp(list){
+  const items=agg(list,e=>e.op).sort((a,b)=>b.amt-a.amt), max=Math.max(1,...items.map(a=>a.amt));
+  $('cOp').innerHTML=barsHtml(items,max,a=>{
+    const w=a.amt/max*100;
+    const seg=(v,c)=>v>0?'<span style="flex:'+v+' 1 0;background:'+c+'"></span>':'';
+    const tipTxt=a.k+'\nTotal '+rs0(a.amt)+'\nStore '+rs0(a.store)+'\nPower '+rs0(a.power)+'\nLabour '+rs0(a.lab)+'\n'+a.n+' batches · '+kgf(a.qty)+' kg · '+rs2(rate(a))+'/kg';
+    return '<div class="brow" tabindex="0" data-tip="'+esc(tipTxt)+'"><span class="blabel">'+esc(a.k)+'</span><span class="btrack"><span class="bstack bfill" style="width:'+w+'%">'+seg(a.store,'var(--s1)')+seg(a.power,'var(--s2)')+seg(a.lab,'var(--s3)')+'</span></span><span class="bval">'+rs0(a.amt)+'</span></div>';
+  });
+}
+function singleBars(el,items){
+  const val=a=>S.metric==='rate'?rate(a):a.amt;
+  const max=Math.max(1e-9,...items.map(val));
+  el.innerHTML=barsHtml(items,max,a=>{
+    const v=val(a), w=v/max*100;
+    const tipTxt=a.k+'\nTotal '+rs0(a.amt)+'\n'+rs2(rate(a))+' per kg\n'+a.n+' batches · '+kgf(a.qty)+' kg';
+    return '<div class="brow" tabindex="0" data-tip="'+esc(tipTxt)+'"><span class="blabel" title="'+esc(a.k)+'">'+esc(a.k)+'</span><span class="btrack"><span class="bstack bfill" style="width:'+w+'%"><span style="flex:1;background:var(--s1)"></span></span></span><span class="bval">'+(S.metric==='rate'?rs2(v):rs0(v))+'</span></div>';
+  });
+}
+function renderWcGrp(list){
+  const val=a=>S.metric==='rate'?rate(a):a.amt;
+  const wc=agg(list,e=>e.r[2]).sort((a,b)=>val(b)-val(a));
+  $('wcSub').textContent=(wc.length>12?'Top 12 of '+wc.length:wc.length+' work centers')+(S.metric==='rate'?', by cost per kg':', by total cost');
+  singleBars($('cWc'),wc.slice(0,12));
+  singleBars($('cGrp'),agg(list,e=>e.r[6]).sort((a,b)=>val(b)-val(a)));
+  document.querySelectorAll('[data-metric]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.metric===S.metric)));
+}
+
+/* ---------- trend ---------- */
+function niceStep(x){const p=Math.pow(10,Math.floor(Math.log10(x)));const f=x/p;return (f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10)*p}
+function lineChart(pts,fmtTick,fmtTip,title){
+  const W=560,H=190,L=58,R=14,T=12,B=26;
+  const t0=Date.parse(pts[0].d),t1=Date.parse(pts[pts.length-1].d);
+  const maxV=Math.max(1e-9,...pts.map(p=>p.y));
+  const step=niceStep(maxV*1.05/4), top=step*Math.ceil(maxV*1.02/step);
+  const X=d=>L+(t1===t0?0.5:(Date.parse(d)-t0)/(t1-t0))*(W-L-R);
+  const Y=v=>T+(1-v/top)*(H-T-B);
+  let g='';
+  for(let v=0;v<=top+1e-9;v+=step){
+    const y=Y(v);
+    g+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+y+'" y2="'+y+'" stroke="'+(v===0?'var(--axis)':'var(--grid)')+'" stroke-width="1"/><text x="'+(L-8)+'" y="'+(y+4)+'" text-anchor="end">'+fmtTick(v)+'</text>';
+  }
+  const idxs=pts.length<=6?pts.map((_,i)=>i):[0,Math.floor((pts.length-1)/2),pts.length-1];
+  idxs.forEach(i=>{const anchor=i===0?'start':i===pts.length-1?'end':'middle';g+='<text x="'+X(pts[i].d)+'" y="'+(H-6)+'" text-anchor="'+anchor+'">'+fmtDate(pts[i].d).replace(/ \d{4}$/,'')+'</text>'});
+  const path=pts.map((p,i)=>(i?'L':'M')+X(p.d).toFixed(1)+' '+Y(p.y).toFixed(1)).join(' ');
+  g+='<path d="'+path+'" fill="none" stroke="var(--s1)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+  pts.forEach(p=>{
+    const cur=S.view==='day'&&p.d===S.date;
+    g+='<circle cx="'+X(p.d)+'" cy="'+Y(p.y)+'" r="'+(cur?6:4)+'" fill="var(--s1)" stroke="var(--surface)" stroke-width="2"/>';
+    g+='<circle cx="'+X(p.d)+'" cy="'+Y(p.y)+'" r="14" fill="transparent" data-tip="'+esc(fmtDate(p.d)+'\n'+fmtTip(p))+'"/>';
+  });
+  return '<div><div class="small-note" style="margin-bottom:4px">'+esc(title)+'</div><svg viewBox="0 0 '+W+' '+H+'" width="100%" role="img" aria-label="'+esc(title)+'">'+g+'</svg></div>';
+}
+function renderTrend(){
+  const el=$('cTrend');
+  if(dayKeys.length<2){
+    el.innerHTML='<div class="empty">The trend appears once two or more days are loaded. Upload tomorrow\'s export to start the line.</div>';
+    return;
+  }
+  const pts=dayKeys.map(d=>{const t=total(scopeEntries([d]));return {d:d,amt:t.amt,qty:t.qty,n:t.n,rate:rate(t)}});
+  el.innerHTML='<div style="display:flex;flex-direction:column;gap:14px">'+
+    lineChart(pts.map(p=>({d:p.d,y:p.amt,p:p})),shortRs,p=>'Cost '+rs0(p.p.amt)+'\n'+p.p.n+' batches · '+kgf(p.p.qty)+' kg','Total cost per day')+
+    lineChart(pts.map(p=>({d:p.d,y:p.rate,p:p})),v=>'₹'+(v>=10?Math.round(v):v.toFixed(1)),p=>rs2(p.p.rate)+' per kg\nCost '+rs0(p.p.amt),'Cost per kg per day')+
+    '</div>';
+}
+
+/* ---------- data checks ---------- */
+function renderChecks(list){
+  if(!list.length){$('checks').innerHTML='<div class="empty">Nothing to check for this selection.</div>';return}
+  const zero=list.filter(e=>e.r[21]===0&&e.r[11]>0);
+  const zg=agg(zero,e=>e.r[2]).sort((a,b)=>b.n-a.n);
+  const groups=new Map();
+  for(const e of list){const k=e.d+'|'+e.r[2]+'|'+e.r[9]+'|'+e.r[10];(groups.get(k)||groups.set(k,[]).get(k)).push(e)}
+  let sharedN=0,sharedAmt=0;const shared=[];
+  groups.forEach(g=>{
+    if(g.length>1&&g.every(e=>Math.abs(e.r[21]-g[0].r[21])<0.005)&&g[0].r[21]>0){
+      sharedN+=g.length; sharedAmt+=g[0].r[21]*(g.length-1);
+      shared.push({wc:g[0].r[2],d:g[0].d,n:g.length,amt:g[0].r[21],batches:g.map(e=>e.r[4])});
+    }
+  });
+  const byOp=new Map();
+  for(const e of list){ if(e.r[5]>0){(byOp.get(e.op)||byOp.set(e.op,[]).get(e.op)).push(e.r[21]/e.r[5])} }
+  const med=new Map(); byOp.forEach((v,k)=>med.set(k,median(v)));
+  const hi=list.filter(e=>{const m=med.get(e.op);return e.r[5]>0&&m>0&&byOp.get(e.op).length>=5&&(e.r[21]/e.r[5])>=4*m}).map(e=>({e:e,rate:e.r[21]/e.r[5],m:med.get(e.op)})).sort((a,b)=>b.rate/b.m-a.rate/a.m);
+  const totalAmt=total(list).amt;
+  const row=(title,count,body,detail)=>'<details class="check"><summary><span class="badge '+(count?'flag':'ok')+'">'+(count?'!':'✓')+'</span><b>'+title+'</b><span class="small-note">'+body+'</span></summary>'+detail+'</details>';
+  $('checks').innerHTML=
+    row('Zero-cost batches',zero.length,zero.length?zero.length+' batches ran but show ₹0 cost':'None found',
+      zero.length?'<ul>'+zg.map(a=>'<li>'+esc(a.k)+': '+a.n+' batches, '+kgf(a.run)+' run minutes</li>').join('')+'</ul><p>These work centers carry no store, power or labour cost in the export, so their ₹ per kg reads as zero.</p>':'')+
+    row('Same run window, same cost on several rows',sharedN,sharedN?sharedN+' rows share a start and end time, '+rs0(sharedAmt)+' ('+(totalAmt?(sharedAmt/totalAmt*100).toFixed(1):'0')+'% of cost) repeated':'None found',
+      sharedN?'<ul>'+shared.slice(0,10).map(s=>'<li>'+esc(s.wc)+' · '+fmtDate(s.d)+' · '+esc(s.batches.join(', '))+' · '+rs0(s.amt)+' on each row</li>').join('')+'</ul><p>If one machine run is split across several materials, the full cost may be counted once per row. Totals above include every row as exported.</p>':'')+
+    row('Unusually high cost per kg',hi.length,hi.length?hi.length+' batches at 4× or more the median for their operation':'None found',
+      hi.length?'<ul>'+hi.slice(0,8).map(h=>'<li>'+esc(h.e.r[4])+' · '+esc(h.e.r[2])+' · '+esc(h.e.op)+' · '+kgf(h.e.r[5])+' kg · '+rs2(h.rate)+'/kg (median '+rs2(h.m)+')</li>').join('')+'</ul><p>Very small confirmed quantities or long run times push the rate up.</p>':'');
+}
+
+/* ---------- tables ---------- */
+function fmtStamp(s){const m=/^(\d{4})-(\d\d)-(\d\d)[ T](\d\d:\d\d:\d\d)/.exec(String(s));return m?(+m[3])+' '+MON[+m[2]-1]+' '+m[4]:String(s||'')}
+const COLS=[
+  {k:'d',l:'Date',v:e=>e.d,all:true},
+  {k:'wc',l:'Work center',v:e=>e.r[2]},
+  {k:'op',l:'Operation',v:e=>e.op},
+  {k:'batch',l:'Batch',v:e=>e.r[4]},
+  {k:'start',l:'Start time',v:e=>e.r[9],f:fmtStamp},
+  {k:'end',l:'Stop time',v:e=>e.r[10],f:fmtStamp},
+  {k:'mat',l:'Material',v:e=>e.r[7]},
+  {k:'qty',l:'Qty (kg)',v:e=>e.r[5],num:true,f:v=>kgf(v)},
+  {k:'run',l:'Run (min)',v:e=>e.r[11],num:true,f:v=>v.toFixed(1)},
+  {k:'amt',l:'Cost (₹)',v:e=>e.r[21],num:true,f:v=>rs0(v)},
+  {k:'rate',l:'₹ per kg',v:e=>e.r[5]>0?e.r[21]/e.r[5]:0,num:true,f:v=>rs2(v)}
+];
+function tableList(list){
+  const q=S.q.trim().toLowerCase();
+  let rows=q?list.filter(e=>(e.r[2]+' '+e.r[3]+' '+e.r[4]+' '+e.r[7]+' '+e.r[8]+' '+e.op).toLowerCase().includes(q)):list.slice();
+  const c=COLS.find(x=>x.k===S.sortKey)||COLS[7];
+  rows.sort((a,b)=>{const x=c.v(a),y=c.v(b);return (x<y?-1:x>y?1:0)*S.sortDir});
+  return rows;
+}
+function renderBatches(list){
+  const cols=COLS.filter(c=>!c.all||S.view==='all');
+  const rows=tableList(list), shown=rows.slice(0,S.limit);
+  $('tblSub').textContent=rows.length+' of '+list.length+' batches'+(S.q?' match the search':'');
+  const th=cols.map(c=>'<th class="'+(c.num?'num':'')+'" aria-sort="'+(S.sortKey===c.k?(S.sortDir>0?'ascending':'descending'):'none')+'"><button type="button" data-sort="'+c.k+'">'+c.l+(S.sortKey===c.k?(S.sortDir>0?' ▲':' ▼'):'')+'</button></th>').join('');
+  const body=shown.map(e=>'<tr>'+cols.map(c=>{const v=c.v(e);return '<td class="'+(c.num?'num':'')+'">'+esc(c.k==='d'?fmtDate(v):c.f?c.f(v):v)+'</td>'}).join('')+'</tr>').join('');
+  $('tbl').innerHTML='<thead><tr>'+th+'</tr></thead><tbody>'+(body||'<tr><td colspan="'+cols.length+'" class="empty">No batches to show.</td></tr>')+'</tbody>';
+  const more=$('more'); more.hidden=rows.length<=S.limit; more.textContent='Show more ('+(rows.length-S.limit)+' left)';
+}
+function renderDays(){
+  $('daysSub').textContent=dayKeys.length?dayKeys.length+' day'+(dayKeys.length>1?'s':'')+' saved'+(db&&canWrite?' and shared with everyone who opens this dashboard':db?' (read only for you)':' on this browser'):'';
+  if(!dayKeys.length){$('daysTbl').innerHTML='';return}
+  const rows=dayKeys.slice().reverse().map(d=>{
+    const all=days[d].rows.map(r=>({d:d,r:r,op:''})), t=total(all);
+    return '<tr><td>'+fmtDate(d)+'</td><td class="num">'+t.n+'</td><td class="num">'+kgf(t.qty)+'</td><td class="num">'+rs0(t.amt)+'</td><td class="num">'+rs2(rate(t))+'</td><td>'+esc(days[d].source||'')+'</td><td><div class="rowact"><button class="btn small" type="button" data-open="'+d+'">Open</button><button class="btn small" type="button" data-remove="'+d+'">Remove</button></div></td></tr>';
+  }).join('');
+  $('daysTbl').innerHTML='<thead><tr><th>Date</th><th class="num">Batches</th><th class="num">Qty (kg)</th><th class="num">Cost</th><th class="num">₹ per kg</th><th>Source file</th><th></th></tr></thead><tbody>'+rows+'</tbody>';
+}
+
+/* ---------- render ---------- */
+function renderAll(){
+  rebuildDays();
+  const hasData=dayKeys.length>0;
+  renderControls();
+  const dates=scopeDates();
+  $('scope').textContent=hasData?((S.view==='day'?fmtDate(S.date):'All days, '+fmtDate(dayKeys[0])+' to '+fmtDate(dayKeys[dayKeys.length-1]))+' · all amounts in ₹'):'No data loaded yet. Upload an export to begin.';
+  const list=scopeEntries(dates);
+  renderKpis(); renderOp(list); renderWcGrp(list); renderTrend(); renderChecks(list); renderDays(); renderBatches(list);
+  $('csvBtn').hidden=!dl;
+}
+function renderTableOnly(){renderBatches(scopeEntries(scopeDates()))}
+
+/* ---------- loading libraries on demand ---------- */
+const loaded={};
+function loadScript(url){
+  return loaded[url]||(loaded[url]=new Promise((res,rej)=>{const s=document.createElement('script');s.src=url;s.onload=res;s.onerror=()=>rej(new Error('Could not load '+url));document.head.appendChild(s)}));
+}
+const XLSX_URL='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+const PDFJS_URL='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+const PDFW_URL='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+/* ---------- parsing uploads ---------- */
+const norm=s=>String(s==null?'':s).toLowerCase().replace(/[^a-z0-9]/g,'');
+const HDR={company:'companycode',plant:'plant',wc:'workcenter',wcText:'workcentertext',date:'postingdate',batch:'batch',qty:'batchconfirmqtyinkg',grp:'materialgroup',mat:'materialcode',desc:'materialcodedescription',start:'batchnostarttime',end:'batchnoendtime',run:'batchruntimeinmin',dayRun:'dayruntimeinmin',sDir:'storedirectamount',sInd:'storeindirectamount',pDir:'powerdirectamount',pInd:'powerindirectamount',lDir:'labourdirectamount',lInd:'labourindirectamount',tDir:'totaldirectamount',tInd:'totalindirectamount',amt:'totalamountdirectindirect'};
+const p2=n=>String(n).padStart(2,'0');
+function cellDate(v){
+  if(v instanceof Date){const d=new Date(v.getTime()+12*3600e3);return d.getUTCFullYear()+'-'+p2(d.getUTCMonth()+1)+'-'+p2(d.getUTCDate())}
+  if(typeof v==='number'&&v>30000){const d=new Date((v-25569)*86400e3);return d.getUTCFullYear()+'-'+p2(d.getUTCMonth()+1)+'-'+p2(d.getUTCDate())}
+  const s=String(v).trim();
+  let m=/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(s); if(m) return m[3]+'-'+p2(m[1])+'-'+p2(m[2]);
+  m=/^(\d{4})-(\d{2})-(\d{2})/.exec(s); if(m) return m[1]+'-'+m[2]+'-'+m[3];
+  m=/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/.exec(s); if(m) return m[3]+'-'+p2(m[2])+'-'+p2(m[1]);
+  return null;
+}
+function cellStamp(v){
+  if(v instanceof Date) return v.getFullYear()+'-'+p2(v.getMonth()+1)+'-'+p2(v.getDate())+' '+p2(v.getHours())+':'+p2(v.getMinutes())+':'+p2(v.getSeconds());
+  return String(v==null?'':v).trim();
+}
+async function parseSheet(file){
+  await loadScript(XLSX_URL);
+  const buf=await file.arrayBuffer();
+  const wb=XLSX.read(buf,{type:'array',cellDates:true});
+  const ws=wb.Sheets[wb.SheetNames[0]];
+  const aoa=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''});
+  let hi=-1;
+  for(let i=0;i<Math.min(aoa.length,15);i++){ if(aoa[i].some(c=>norm(c)==='postingdate')){hi=i;break} }
+  if(hi<0) throw new Error('No header row with "Posting Date" was found. Export the table from SAPUI5 with all columns.');
+  const idx={};const names=aoa[hi].map(norm);
+  const missing=[];
+  for(const k in HDR){const j=names.indexOf(HDR[k]); if(j<0) missing.push(k); idx[k]=j}
+  const needed=['wc','date','qty','amt','run'];
+  const lack=needed.filter(k=>missing.includes(k));
+  if(lack.length) throw new Error('These columns are missing from the file: '+lack.map(k=>HDR[k]).join(', '));
+  const byDate={};
+  for(let i=hi+1;i<aoa.length;i++){
+    const a=aoa[i]; const get=k=>idx[k]>=0?a[idx[k]]:'';
+    const date=cellDate(get('date')); if(!date||!String(get('wc')).trim()) continue;
+    const n=k=>NUM(get(k));
+    const row=[String(get('company')),String(get('plant')),String(get('wc')),String(get('wcText')),String(get('batch')),n('qty'),String(get('grp')),String(get('mat')),String(get('desc')),cellStamp(get('start')),cellStamp(get('end')),n('run'),n('dayRun'),n('sDir'),n('sInd'),n('pDir'),n('pInd'),n('lDir'),n('lInd'),n('tDir'),n('tInd'),n('amt')];
+    (byDate[date]=byDate[date]||[]).push(row);
+  }
+  return {byDate,bad:0};
+}
+async function parsePdf(file){
+  await loadScript(PDFJS_URL);
+  const lib=window.pdfjsLib; lib.GlobalWorkerOptions.workerSrc=PDFW_URL;
+  const pdf=await lib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;
+  const lines=[];
+  for(let p=1;p<=pdf.numPages;p++){
+    const tc=await (await pdf.getPage(p)).getTextContent();
+    const rows=new Map();
+    for(const it of tc.items){
+      if(!it.str||!it.str.trim()) continue;
+      const y=Math.round(it.transform[5]/3);
+      (rows.get(y)||rows.set(y,[]).get(y)).push({x:it.transform[4],s:it.str});
+    }
+    Array.from(rows.keys()).sort((a,b)=>b-a).forEach(y=>lines.push(rows.get(y).sort((a,b)=>a.x-b.x).map(i=>i.s.trim()).join(' ')));
+  }
+  return parseTextLines(lines);
+}
+async function readFile(file){
+  const name=file.name.toLowerCase();
+  if(name.endsWith('.pdf')) return parsePdf(file);
+  if(/\.(xlsx|xls|csv)$/.test(name)) return parseSheet(file);
+  throw new Error('Unsupported file type. Use .xlsx, .csv or .pdf.');
+}
+
+/* ---------- saving ---------- */
+async function persist(date,rec){
+  const doc={date:date,rows:rec.rows,source:rec.source,at:rec.at};
+  if(db&&canWrite&&JSON.stringify(doc).length<240000){
+    try{await db.collection('days').doc(date).set(doc); delete local[date]; saveLocal(); return 'shared'}catch(e){}
+  }
+  local[date]={rows:rec.rows,source:rec.source,at:rec.at}; saveLocal(); return 'local';
+}
+async function handleFiles(files){
+  const notes=[];let lastDate=null,errs=[];
+  for(const f of files){
+    try{
+      const res=await readFile(f);
+      const dates=Object.keys(res.byDate).sort();
+      if(!dates.length) throw new Error('No batch rows were found'+(f.name.toLowerCase().endsWith('.pdf')?'. If this PDF is scanned or laid out differently, export the same table as Excel and upload that.':'.'));
+      for(const d of dates){
+        const existed=!!days[d];
+        const rec={rows:res.byDate[d],source:f.name,at:new Date().toISOString()};
+        sess[d]=rec;
+        const where=await persist(d,rec);
+        notes.push(fmtDate(d)+': '+rec.rows.length+' batches from '+f.name+(existed?' (replaced the earlier upload)':'')+(where==='local'?' · saved on this browser only':''));
+        lastDate=d;
+      }
+      if(res.bad) errs.push(f.name+': '+res.bad+' lines looked like batch rows but could not be read');
+    }catch(e){ errs.push(f.name+': '+(e&&e.message||e)); }
+  }
+  if(lastDate){S.view='day';S.date=lastDate;S.plant='';S.op='';S.grp=''}
+  renderAll();
+  if(errs.length&&!notes.length) setMsg(errs.join(' | '),'err');
+  else setMsg(notes.join(' | ')+(errs.length?' | '+errs.join(' | '):''));
+}
+async function removeDay(d){
+  sess[d]=null;
+  if(SEED&&SEED[d]){local[d]=null;saveLocal()} else if(local[d]){delete local[d];saveLocal()}
+  if(db&&canWrite){try{await db.collection('days').doc(d).delete()}catch(e){}}
+  setMsg(fmtDate(d)+' removed.'); renderAll();
+}
+
+/* ---------- events ---------- */
+$('uploadBtn').addEventListener('click',()=>$('file').click());
+$('file').addEventListener('change',e=>{const fs=Array.from(e.target.files);e.target.value='';if(fs.length) handleFiles(fs)});
+const drop=$('drop');
+['dragenter','dragover'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.add('over')}));
+['dragleave','drop'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.remove('over')}));
+drop.addEventListener('drop',e=>{const fs=Array.from(e.dataTransfer.files||[]);if(fs.length) handleFiles(fs)});
+window.addEventListener('dragover',e=>e.preventDefault());
+window.addEventListener('drop',e=>e.preventDefault());
+$('fView').addEventListener('change',e=>{S.view=e.target.value;S.limit=100;renderAll()});
+$('fDate').addEventListener('change',e=>{S.date=e.target.value;S.limit=100;renderAll()});
+$('fPlant').addEventListener('change',e=>{S.plant=e.target.value;S.limit=100;renderAll()});
+$('fOp').addEventListener('change',e=>{S.op=e.target.value;S.limit=100;renderAll()});
+$('fGrp').addEventListener('change',e=>{S.grp=e.target.value;S.limit=100;renderAll()});
+$('q').addEventListener('input',e=>{S.q=e.target.value;S.limit=100;renderTableOnly()});
+$('more').addEventListener('click',()=>{S.limit+=200;renderTableOnly()});
+const pendingRemove={};
+document.addEventListener('click',e=>{
+  const t=e.target.closest('button'); if(!t) return;
+  if(t.dataset.metric){S.metric=t.dataset.metric;renderAll();return}
+  if(t.dataset.sort){const k=t.dataset.sort;if(S.sortKey===k)S.sortDir*=-1;else{S.sortKey=k;S.sortDir=(k==='amt'||k==='qty'||k==='run'||k==='rate')?-1:1}renderTableOnly();return}
+  if(t.dataset.open){S.view='day';S.date=t.dataset.open;renderAll();window.scrollTo({top:0,behavior:'smooth'});return}
+  if(t.dataset.remove){
+    const d=t.dataset.remove;
+    if(pendingRemove[d]){delete pendingRemove[d];removeDay(d)}
+    else{pendingRemove[d]=true;t.textContent='Confirm remove';setTimeout(()=>{delete pendingRemove[d];if(t.isConnected)t.textContent='Remove'},4000)}
+  }
+});
+$('csvBtn').addEventListener('click',async()=>{
+  if(!dl) return;
+  const list=tableList(scopeEntries(scopeDates()));
+  const head=['Date','Plant','Work center','Operation','Batch','Start time','Stop time','Material code','Material description','Material group','Qty (kg)','Run (min)','Store','Power','Labour','Total cost','Cost per kg'];
+  const q=v=>'"'+String(v).replace(/"/g,'""')+'"';
+  const lines=[head.map(q).join(',')].concat(list.map(e=>{const r=e.r;return [e.d,r[1],r[2],e.op,r[4],r[9],r[10],r[7],r[8],r[6],r[5],r[11],(r[13]+r[14]).toFixed(2),(r[15]+r[16]).toFixed(2),(r[17]+r[18]).toFixed(2),r[21].toFixed(2),(r[5]>0?r[21]/r[5]:0).toFixed(2)].map(q).join(',')}));
+  try{await dl.save({filename:'batch-cost-'+(S.view==='day'?S.date:'all-days')+'.csv',data:lines.join('\n')})}catch(err){if(err&&err.code!=='declined') setMsg('The file could not be saved here.','err')}
+});
+
+/* ---------- start ---------- */
+renderAll();
+(async function initCaps(){
+  const c=window.claude; if(!c||!c.use) return;
+  try{const u=await c.use('user'); if(u){const w=await u.can('data.write'); if(w===false) canWrite=false}}catch(e){}
+  try{dl=await c.use('downloads')}catch(e){dl=null}
+  try{db=await c.use('db')}catch(e){db=null}
+  if(db){
+    try{
+      db.collection('days').onSnapshot(snap=>{
+        const m={}; snap.docs.forEach(d=>{const v=d.data(); if(v&&Array.isArray(v.rows)) m[d.id]=v});
+        remote=m; renderAll();
+      },()=>{db=null;remote=null;renderAll()});
+    }catch(e){db=null}
+  }
+  renderAll();
+})();
+})();
+</script>
+
+</body>
+</html>
